@@ -1,0 +1,64 @@
+{
+  "name": "yop-typescript-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for interacting with YOP (Yeepay Open Platform)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "lint": "eslint src/**/*.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "md5": "^2.3.0",
+    "urlsafe-base64": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.0.0",
+    "@types/md5": "^2.3.5",
+    "@types/node": "^18.19.86",
+    "@types/urlsafe-base64": "^1.0.31",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "yeepay",
+    "yop",
+    "sdk",
+    "typescript",
+    "payment"
+  ],
+  "author": "dreambt <dreambt@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:yop-developer/yop-typescript-sdk.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "jest": {
+    "preset": "ts-jest/presets/default-esm",
+    "moduleNameMapper": {},
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
+    "globals": {
+      "ts-jest": {
+        "useESM": true
+      }
+    }
+  }
+}

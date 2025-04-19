@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x] # 测试不同 Node 版本
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm' # 缓存依赖
+
+    - name: Install dependencies
+      run: npm ci # 使用 ci 更快更可靠
+
+    - name: Lint code
+      run: npm run lint --if-present # 如果定义了 lint 脚本则运行
+
+    - name: Run tests
+      run: npm test
+
+    - name: Build project
+      run: npm run build
