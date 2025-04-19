@@ -1,7 +1,7 @@
-# YOP TypeScript SDK (yop-typescript-sdk)
+# YOP TypeScript SDK (@yeepay/yop-typescript-sdk)
 
-[![npm version](https://img.shields.io/npm/v/yop-typescript-sdk.svg)](https://www.npmjs.com/package/yop-typescript-sdk)
-[![npm downloads](https://img.shields.io/npm/dm/yop-typescript-sdk.svg)](https://www.npmjs.com/package/yop-typescript-sdk)
+[![npm version](https://img.shields.io/npm/v/@yeepay/yop-typescript-sdk.svg)](https://www.npmjs.com/package/@yeepay/yop-typescript-sdk)
+[![npm downloads](https://img.shields.io/npm/dm/@yeepay/yop-typescript-sdk.svg)](https://www.npmjs.com/package/@yeepay/yop-typescript-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 [Read this document in English](README.md)
@@ -25,46 +25,85 @@
 使用您偏好的包管理器安装此包：
 
 ```bash
-npm install yop-typescript-sdk
+npm install @yeepay/yop-typescript-sdk
 # 或
-yarn add yop-typescript-sdk
+yarn add @yeepay/yop-typescript-sdk
 # 或
-pnpm add yop-typescript-sdk
+pnpm add @yeepay/yop-typescript-sdk
 ```
 
 ## 配置
 
-在使用 SDK 之前，您需要使用您的易宝凭证和 API 详细信息对其进行配置。强烈建议从环境变量或安全的配置管理系统加载密钥等敏感信息，而不是将其硬编码。
+`YopClient` 可以通过以下两种方式进行配置：
 
-```typescript
-import { YopClient } from 'yop-typescript-sdk';
-import type { YopConfig } from 'yop-typescript-sdk';
-import dotenv from 'dotenv';
-import fs from 'fs';
+1.  **通过环境变量（推荐，更简单）：**
+    如果在构造函数中未传递配置对象，SDK 将自动尝试从以下环境变量加载所需配置：
+    - `YOP_APP_KEY`: (必需) 您的易宝应用 AppKey。
+    - `YOP_SECRET_KEY`: (必需) 您应用的私钥（原始字符串，PEM 格式 PKCS#1 或 PKCS#8）。**请妥善保管！**
+    - `YOP_PUBLIC_KEY`: (必需) 易宝平台的公钥（原始字符串，PEM 格式）。这是公钥*内容*，不是文件路径。请从易宝开发者门户下载。
+    - `YOP_API_BASE_URL`: (可选) 易宝 API 的基础 URL。默认为生产环境 (`https://openapi.yeepay.com`)。
 
-// 1. 加载环境变量（推荐用于敏感数据）
-dotenv.config(); // 确保您已设置 .env 文件或环境变量
+    *示例 `.env` 文件：*
+    ```dotenv
+    YOP_APP_KEY=your_app_key
+    YOP_SECRET_KEY='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'
+    YOP_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----'
+    # YOP_API_BASE_URL=https://sandbox.yeepay.com # 可选，用于沙箱环境
+    ```
 
-// 2. 准备配置对象
-const yopConfig: YopConfiYOP_SECRET_KEY
-  appKey: process.env.YOP_APP_KEY!, // 您的易宝应用 AppKey
-  secretKey: process.env.YOP_SECRET_KEY!, // 您的原始私钥字符串（PKCS#1 或 PKCS#8 格式）
-  yopPublicKey: fs.readFileSync('./path/to/yop_platform_rsa_cert_rsa.cer', 'utf-8'), // 易宝平台公钥字符串
-  yeepayApiBaseUrl: process.env.YOP_API_BASE_URL || 'https://openapi.yeepay.com', // 可选：默认为生产环境 URL
-};
+    *示例初始化：*
+    ```typescript
+    import { YopClient } from '@yeepay/yop-typescript-sdk';
+    import dotenv from 'dotenv';
 
-// 3. 创建 YopClient 实例
-const yopClient = new YopClient(yopConfig);
+    // 加载环境变量（例如，从 .env 文件）
+    dotenv.config();
 
-console.log('YopClient 初始化成功！');
-```
+    // 使用环境变量初始化 YopClient
+    try {
+      // 未传递配置对象，SDK 使用环境变量
+      const yopClient = new YopClient();
+      console.log('YopClient 使用环境变量初始化成功！');
+      // 使用 yopClient 进行 API 调用...
+    } catch (error) {
+      console.error('从环境变量初始化 YopClient 失败：', error);
+      // 请确保所有必需的环境变量（YOP_APP_KEY, YOP_SECRET_KEY, YOP_PUBLIC_KEY）都已设置。
+    }
+    ```
 
-**配置选项：**
+2.  **通过显式 `YopConfig` 对象：**
+    您可以显式地将配置对象传递给 `YopClient` 构造函数。**如果同时设置了环境变量并传递了配置对象，则此方法优先**（对象中的值会覆盖相应的环境变量）。
 
-- `appKey` (string, 必需): 您的唯一应用标识符，由易宝提供。
-- `secretKey` (string, 必需): 您应用的私钥（PEM 格式的原始字符串）。**请妥善保管！**
-- `yopPublicKey` (string, 必需): 用于验证响应的易宝平台公钥（PEM 格式的原始字符串）。请从易宝开发者门户下载。
-- `yeepayApiBaseUrl` (string, 可选): 易宝 API 的基础 URL。默认为生产环境 (`https://openapi.yeepay.com`)。您可能需要为沙箱环境更改此项。
+    *示例初始化：*
+    ```typescript
+    import { YopClient } from '@yeepay/yop-typescript-sdk';
+    import type { YopConfig } from '@yeepay/yop-typescript-sdk';
+    import dotenv from 'dotenv'; // 仍然可用于加载部分配置
+
+    dotenv.config(); // 加载任何潜在的回退或其他环境变量
+
+    // 显式准备配置对象
+    const yopConfig: YopConfig = {
+      appKey: process.env.MY_CUSTOM_APP_KEY || 'defaultAppKey', // 示例：使用不同的环境变量或默认值
+      secretKey: process.env.MY_SECRET_KEY!, // 示例：从特定变量获取
+      yopPublicKey: process.env.YOP_PUBLIC_KEY!, // 如果需要，仍可从标准环境变量加载
+      // yeepayApiBaseUrl: 'https://sandbox.yeepay.com' // 示例：覆盖基础 URL
+    };
+
+    // 使用显式配置创建 YopClient 实例
+    const yopClient = new YopClient(yopConfig);
+
+    console.log('YopClient 使用显式配置初始化成功！');
+    ```
+
+**配置选项（当使用 `YopConfig` 对象时）：**
+
+当您向 `YopClient` 构造函数传递配置对象时，将使用这些选项。如果对象中省略了某个选项，SDK 将尝试回退到相应的环境变量。
+
+- `appKey` (string, 必需): 您的唯一应用标识符，由易宝提供。（回退到 `process.env.YOP_APP_KEY`）。
+- `secretKey` (string, 必需): 您应用的私钥（PEM 格式的原始字符串）。**请妥善保管！**（回退到 `process.env.YOP_SECRET_KEY`）。
+- `yopPublicKey` (string, 必需): 用于验证响应的易宝平台公钥（PEM 格式的原始字符串）。这必须是密钥*内容*，而不是文件路径。（回退到 `process.env.YOP_PUBLIC_KEY`）。
+- `yeepayApiBaseUrl` (string, 可选): 易宝 API 的基础 URL。（回退到 `process.env.YOP_API_BASE_URL`，然后默认为 `https://openapi.yeepay.com`）。
 
 ## 用法 / 快速开始
 
@@ -73,7 +112,7 @@ console.log('YopClient 初始化成功！');
 **示例：创建预支付订单**
 
 ```typescript
-import type { YopResponse } from "yop-typescript-sdk";
+import type { YopResponse } from "@yeepay/yop-typescript-sdk";
 // 假设 yopClient 已按上述方式配置和初始化
 
 async function createPayment() {
@@ -121,7 +160,7 @@ createPayment();
 **示例：查询支付订单**
 
 ```typescript
-import type { YopResponse } from "yop-typescript-sdk";
+import type { YopResponse } from "@yeepay/yop-typescript-sdk";
 // 假设 yopClient 已配置和初始化
 
 async function queryPayment(orderId: string) {

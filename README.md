@@ -1,7 +1,7 @@
-# YOP TypeScript SDK (yop-typescript-sdk)
+# YOP TypeScript SDK (@yeepay/yop-typescript-sdk)
 
-[![npm version](https://img.shields.io/npm/v/yop-typescript-sdk.svg)](https://www.npmjs.com/package/yop-typescript-sdk)
-[![npm downloads](https://img.shields.io/npm/dm/yop-typescript-sdk.svg)](https://www.npmjs.com/package/yop-typescript-sdk)
+[![npm version](https://img.shields.io/npm/v/@yeepay/yop-typescript-sdk.svg)](https://www.npmjs.com/package/@yeepay/yop-typescript-sdk)
+[![npm downloads](https://img.shields.io/npm/dm/@yeepay/yop-typescript-sdk.svg)](https://www.npmjs.com/package/@yeepay/yop-typescript-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 [阅读中文文档](README_zh-CN.md)
@@ -25,46 +25,85 @@ This SDK provides a convenient way to integrate Yeepay payment and other service
 Install the package using your preferred package manager:
 
 ```bash
-npm install yop-typescript-sdk
+npm install @yeepay/yop-typescript-sdk
 # or
-yarn add yop-typescript-sdk
+yarn add @yeepay/yop-typescript-sdk
 # or
-pnpm add yop-typescript-sdk
+pnpm add @yeepay/yop-typescript-sdk
 ```
 
 ## Configuration
 
-Before using the SDK, you need to configure it with your Yeepay credentials and API details. It's highly recommended to load sensitive information like keys from environment variables or a secure configuration management system, rather than hardcoding them.
+The `YopClient` can be configured in two ways:
 
-```typescript
-import { YopClient } from 'yop-typescript-sdk';
-import type { YopConfig } from 'yop-typescript-sdk';
-import dotenv from 'dotenv';
-import fs from 'fs';
+1.  **Via Environment Variables (Recommended for simplicity):**
+    If no configuration object is passed to the constructor, the SDK will automatically attempt to load the required configuration from the following environment variables:
+    - `YOP_APP_KEY`: (Required) Your Yeepay Application Key.
+    - `YOP_SECRET_KEY`: (Required) Your application's private key (raw string, PEM format PKCS#1 or PKCS#8). **Keep this secure!**
+    - `YOP_PUBLIC_KEY`: (Required) The Yeepay platform's public key (raw string, PEM format). This is the key *content*, not a file path. Download from the Yeepay developer portal.
+    - `YOP_API_BASE_URL`: (Optional) The base URL for the Yeepay API. Defaults to production (`https://openapi.yeepay.com`).
 
-// 1. Load environment variables (recommended for sensitive data)
-dotenv.config(); // Make sure you have a .env file or environment variables set
+    *Example `.env` file:*
+    ```dotenv
+    YOP_APP_KEY=your_app_key
+    YOP_SECRET_KEY='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'
+    YOP_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----'
+    # YOP_API_BASE_URL=https://sandbox.yeepay.com # Optional for sandbox
+    ```
 
-// 2. Prepare the configuration object
-const yopConfig: YopConfiYOP_SECRET_KEY
-  appKey: process.env.YOP_APP_KEY!, // Your Yeepay Application Key
-  secretKey: process.env.YOP_SECRET_KEY!, // Your raw private key string (PKCS#1 or PKCS#8 format)
-  yopPublicKey: fs.readFileSync('./path/to/yop_platform_rsa_cert_rsa.cer', 'utf-8'), // Yeepay's platform public key string
-  yeepayApiBaseUrl: process.env.YOP_API_BASE_URL || 'https://openapi.yeepay.com', // Optional: Defaults to production URL
-};
+    *Example Initialization:*
+    ```typescript
+    import { YopClient } from '@yeepay/yop-typescript-sdk';
+    import dotenv from 'dotenv';
 
-// 3. Create a YopClient instance
-const yopClient = new YopClient(yopConfig);
+    // Load environment variables (e.g., from a .env file)
+    dotenv.config();
 
-console.log('YopClient initialized successfully!');
-```
+    // Initialize YopClient using environment variables
+    try {
+      // No config object passed, SDK uses environment variables
+      const yopClient = new YopClient();
+      console.log('YopClient initialized successfully using environment variables!');
+      // Use yopClient for API calls...
+    } catch (error) {
+      console.error('Failed to initialize YopClient from environment variables:', error);
+      // Ensure all required environment variables (YOP_APP_KEY, YOP_SECRET_KEY, YOP_PUBLIC_KEY) are set.
+    }
+    ```
 
-**Configuration Options:**
+2.  **Via Explicit `YopConfig` Object:**
+    You can explicitly pass a configuration object to the `YopClient` constructor. **This method takes precedence** if both environment variables and a config object are provided (values in the object override corresponding environment variables).
 
-- `appKey` (string, required): Your unique application identifier provided by Yeepay.
-- `secretKey` (string, required): Your application's private key (in PEM format, as a raw string). **Keep this secure!**
-- `yopPublicKey` (string, required): The Yeepay platform's public key (in PEM format, as a raw string) used to verify responses. Download this from the Yeepay developer portal.
-- `yeepayApiBaseUrl` (string, optional): The base URL for the Yeepay API. Defaults to the production environment (`https://openapi.yeepay.com`). You might need to change this for sandbox environments.
+    *Example Initialization:*
+    ```typescript
+    import { YopClient } from '@yeepay/yop-typescript-sdk';
+    import type { YopConfig } from '@yeepay/yop-typescript-sdk';
+    import dotenv from 'dotenv'; // Still useful for loading parts of the config
+
+    dotenv.config(); // Load any potential fallbacks or other env vars
+
+    // Prepare the configuration object explicitly
+    const yopConfig: YopConfig = {
+      appKey: process.env.MY_CUSTOM_APP_KEY || 'defaultAppKey', // Example: Using different env var or default
+      secretKey: process.env.MY_SECRET_KEY!, // Example: Sourcing from a specific variable
+      yopPublicKey: process.env.YOP_PUBLIC_KEY!, // Can still load from standard env var if desired
+      // yeepayApiBaseUrl: 'https://sandbox.yeepay.com' // Example: Overriding the base URL
+    };
+
+    // Create a YopClient instance with the explicit config
+    const yopClient = new YopClient(yopConfig);
+
+    console.log('YopClient initialized successfully with explicit config!');
+    ```
+
+**Configuration Options (when using `YopConfig` object):**
+
+These options are used when you pass a configuration object to the `YopClient` constructor. If an option is omitted from the object, the SDK will attempt to fall back to the corresponding environment variable.
+
+- `appKey` (string, required): Your unique application identifier provided by Yeepay. (Falls back to `process.env.YOP_APP_KEY`).
+- `secretKey` (string, required): Your application's private key (in PEM format, as a raw string). **Keep this secure!** (Falls back to `process.env.YOP_SECRET_KEY`).
+- `yopPublicKey` (string, required): The Yeepay platform's public key (in PEM format, as a raw string) used to verify responses. This must be the key *content*, not a file path. (Falls back to `process.env.YOP_PUBLIC_KEY`).
+- `yeepayApiBaseUrl` (string, optional): The base URL for the Yeepay API. (Falls back to `process.env.YOP_API_BASE_URL`, then defaults to `https://openapi.yeepay.com`).
 
 ## Usage / Quick Start
 
@@ -73,7 +112,7 @@ Once the `YopClient` is configured, you can make API calls using its methods.
 **Example: Creating a Pre-payment Order**
 
 ```typescript
-import type { YopResponse } from "yop-typescript-sdk";
+import type { YopResponse } from "@yeepay/yop-typescript-sdk";
 // Assuming yopClient is already configured and initialized as shown above
 
 async function createPayment() {
@@ -121,7 +160,7 @@ createPayment();
 **Example: Querying a Payment Order**
 
 ```typescript
-import type { YopResponse } from "yop-typescript-sdk";
+import type { YopResponse } from "@yeepay/yop-typescript-sdk";
 // Assuming yopClient is already configured and initialized
 
 async function queryPayment(orderId: string) {
