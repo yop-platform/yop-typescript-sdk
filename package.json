@@ -1,6 +1,6 @@
 {
   "name": "yop-typescript-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TypeScript SDK for interacting with YOP (Yeepay Open Platform)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -42,7 +42,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git@github.com:yop-developer/yop-typescript-sdk.git"
+    "url": "git@github.com:yop-platform/yop-typescript-sdk.git"
   },
   "publishConfig": {
     "access": "public"
