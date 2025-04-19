@@ -1,5 +1,3 @@
-// import { Method } from "axios"; // Removed axios import
-// import { ResponseType } from "axios"; // Removed axios import
 export interface RequestOptions {
   appKey: string;
   secretKey: string;

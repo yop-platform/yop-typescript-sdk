@@ -1,25 +1,19 @@
 import * as dotenv from 'dotenv';
+import { jest, describe, beforeEach, test, expect } from '@jest/globals'; // Re-add explicit Jest globals import
+
 dotenv.config(); // Load environment variables from .env file
 
-import { YopClient } from '../src/YopClient'; // Adjusted path
+import { YopClient } from '../src/YopClient';
 import { YopConfig } from '../src/types'; // Added YopConfig import and adjusted path
-// Mock the external SDK dependency
-jest.mock('yop-nodejs-sdk', () => ({
-  RsaV3Util: {
-    getAuthHeaders: jest.fn() as jest.Mock,
-  },
-  RsaV3Util: { // Keep the mocked structure
-    getAuthHeaders: jest.fn() as jest.Mock,
-  },
-  VerifyUtils: { // Keep the mocked structure
-    isValidRsaResult: jest.fn() as jest.Mock,
-  },
-}));
-// Removed mock for local VerifyUtils
+import * as RsaV3UtilModule from '../src/utils/RsaV3Util'; // Import the actual module
+import * as VerifyUtilsModule from '../src/utils/VerifyUtils'; // Import the actual module
 
-// Mock 全局 fetch
-const mockFetch = jest.fn();
+// Remove jest.mock calls for local utils
+
+// Mock 全局 fetch using 'as any' to simplify typing
+const mockFetch = jest.fn() as any;
 global.fetch = mockFetch;
+
 
 // Mock AbortController for timeout tests
 const mockAbort = jest.fn();
@@ -30,6 +24,7 @@ global.AbortController = jest.fn(() => ({
 })) as any;
 
 
+
 describe('YopClient', () => {
   let yopClient: YopClient;
   const mockApiUri = '/rest/v1.0/test/api';
@@ -37,33 +32,40 @@ describe('YopClient', () => {
   const mockConfig: YopConfig = { // Create mock config
     appKey: 'mock-app-key',
     secretKey: 'mock-secret-key', // Provide a mock secret key
-    yeepayApiBaseUrl: 'https://mock-api.yeepay.com',
+    yopApiBaseUrl: 'https://mock-api.yeepay.com',
     yopPublicKey: 'mock-yop-public-key', // Provide a mock public key
-    merchantNo: 'mock-merchant-no', // Provide a mock merchant number
-    // Add other necessary fields from YopConfig if needed, e.g., timeout
-    timeout: 30000, // Example timeout
+    // merchantNo: 'mock-merchant-no', // Removed as it's not in YopConfig
+    // Add other necessary fields from YopConfig if needed
+    // timeout: 30000, // Removed as it's not in YopConfig
   };
   const mockAuthHeaders = {
     'Authorization': 'YOP-RSA3-TEST test-app-key/test-signature', // Example auth header
     'x-yop-appkey': 'test-app-key',
     'x-yop-request-id': 'mock-request-id',
     'x-yop-date': new Date().toISOString(),
-    'x-yop-sdk-version': 'yop-nodejs-sdk/4.0.0', // 根据实际使用的SDK版本调整
+    'x-yop-sdk-version': 'yop-typescript-sdk/0.1.0', // 根据实际使用的SDK版本调整
     'x-yop-sdk-lang': 'nodejs',
   };
   const mockSuccessResponseData = { code: 'OPR00000', message: 'Success', result: { data: 'ok' } };
   const mockYopSignHeader = 'mock-yop-sign-header';
 
+  let RsaV3UtilMock: any; // Keep for potential future use if needed
+  let VerifyUtilsMock: any; // Keep for potential future use if needed
+
+  let getAuthHeadersSpy: any; // Use 'any' type for spy
+  let isValidRsaResultSpy: any; // Use 'any' type for spy
+
   beforeEach(() => {
     // Reset mocks before each test
-    jest.clearAllMocks();
+    jest.clearAllMocks(); // Clears jest.fn() and spies
     mockSignal.aborted = false;
 
-    // Mock the methods from the mocked 'yop-nodejs-sdk'
-    // Need to import the mocked module to access its mocked functions
-    const { RsaV3Util, VerifyUtils } = jest.requireMock('yop-nodejs-sdk');
-    (RsaV3Util.getAuthHeaders as jest.Mock).mockReturnValue(mockAuthHeaders);
-    (VerifyUtils.isValidRsaResult as jest.Mock).mockReturnValue(true);
+    // Use spyOn to replace the implementation
+    getAuthHeadersSpy = jest.spyOn(RsaV3UtilModule.RsaV3Util, 'getAuthHeaders')
+                           .mockReturnValue(mockAuthHeaders);
+    isValidRsaResultSpy = jest.spyOn(VerifyUtilsModule.VerifyUtils, 'isValidRsaResult')
+                             .mockReturnValue(true);
+
 
     // Instantiate YopClient with mock config
     yopClient = new YopClient(mockConfig);
@@ -78,17 +80,16 @@ describe('YopClient', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      json: jest.fn().mockResolvedValue(mockSuccessResponseData),
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockSuccessResponseData)), // Add text() method
+      json: jest.fn<() => Promise<any>>().mockResolvedValue(mockSuccessResponseData), // Explicit type for jest.fn
+      text: jest.fn<() => Promise<string>>().mockResolvedValue(JSON.stringify(mockSuccessResponseData)), // Explicit type for jest.fn
     };
-    mockFetch.mockResolvedValue(mockResponse);
+    mockFetch.mockResolvedValue(mockResponse as any); // Keep 'as any' here
 
     // Call 'get' without headers argument
     const result = await yopClient.get(mockApiUri, mockParams);
 
-    // Check if getAuthHeaders was called with the correct object structure using mockConfig
-    const { RsaV3Util } = jest.requireMock('yop-nodejs-sdk'); // Get mocked module again if needed
-    expect(RsaV3Util.getAuthHeaders).toHaveBeenCalledWith({
+    // Check if the spy was called correctly
+    expect(getAuthHeadersSpy).toHaveBeenCalledWith({
         appKey: mockConfig.appKey,
         secretKey: mockConfig.secretKey,
         method: 'GET',
@@ -96,17 +97,15 @@ describe('YopClient', () => {
         params: mockParams,
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      // URL should include base URL from mockConfig
-      expect.stringContaining(`${mockConfig.yeepayApiBaseUrl}${mockApiUri}?param1=value1&param2=value2`),
+      expect.stringContaining(`${mockConfig.yopApiBaseUrl}/yop-center${mockApiUri}?param1=value1&param2=value2`), // Added /yop-center
       {
         method: 'GET',
         headers: expect.any(Headers), // Headers object is created internally
         signal: mockSignal,
       }
     );
-    // Check if isValidRsaResult was called with the correct object structure using mockConfig
-    const { VerifyUtils } = jest.requireMock('yop-nodejs-sdk'); // Get mocked module again if needed
-    expect(VerifyUtils.isValidRsaResult).toHaveBeenCalledWith({
+    // Check if the spy was called correctly
+    expect(isValidRsaResultSpy).toHaveBeenCalledWith({
         data: JSON.stringify(mockSuccessResponseData),
         sign: mockYopSignHeader,
         publicKey: mockConfig.yopPublicKey,
@@ -119,17 +118,16 @@ describe('YopClient', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      json: jest.fn().mockResolvedValue(mockSuccessResponseData),
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockSuccessResponseData)), // Add text() method
+      json: jest.fn<() => Promise<any>>().mockResolvedValue(mockSuccessResponseData), // Explicit type for jest.fn
+      text: jest.fn<() => Promise<string>>().mockResolvedValue(JSON.stringify(mockSuccessResponseData)), // Explicit type for jest.fn
     };
-    mockFetch.mockResolvedValue(mockResponse);
+    mockFetch.mockResolvedValue(mockResponse as any); // Keep 'as any' here
 
     // Call 'post' without headers, default content type is form-urlencoded
     const result = await yopClient.post(mockApiUri, mockParams);
 
-    // Check if getAuthHeaders was called correctly for POST using mockConfig
-    const { RsaV3Util } = jest.requireMock('yop-nodejs-sdk');
-    expect(RsaV3Util.getAuthHeaders).toHaveBeenCalledWith({
+    // Check if the spy was called correctly
+    expect(getAuthHeadersSpy).toHaveBeenCalledWith({
         appKey: mockConfig.appKey,
         secretKey: mockConfig.secretKey,
         method: 'POST',
@@ -137,7 +135,7 @@ describe('YopClient', () => {
         params: mockParams, // Body is passed as params for signing
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      `${mockConfig.yeepayApiBaseUrl}${mockApiUri}`, // Full URL from mockConfig
+      `${mockConfig.yopApiBaseUrl}/yop-center${mockApiUri}`, // Added /yop-center
       {
         method: 'POST',
         headers: expect.any(Headers), // Headers object created internally
@@ -145,8 +143,8 @@ describe('YopClient', () => {
         signal: mockSignal,
       }
     );
-    const { VerifyUtils } = jest.requireMock('yop-nodejs-sdk');
-    expect(VerifyUtils.isValidRsaResult).toHaveBeenCalledWith({
+    // Check if the spy was called correctly
+    expect(isValidRsaResultSpy).toHaveBeenCalledWith({
         data: JSON.stringify(mockSuccessResponseData),
         sign: mockYopSignHeader,
         publicKey: mockConfig.yopPublicKey,
@@ -159,18 +157,18 @@ describe('YopClient', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      json: jest.fn().mockResolvedValue(mockSuccessResponseData),
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockSuccessResponseData)), // Add text() method
+      json: jest.fn<() => Promise<any>>().mockResolvedValue(mockSuccessResponseData), // Explicit type for jest.fn
+      text: jest.fn<() => Promise<string>>().mockResolvedValue(JSON.stringify(mockSuccessResponseData)), // Explicit type for jest.fn
     };
-    mockFetch.mockResolvedValue(mockResponse);
+    mockFetch.mockResolvedValue(mockResponse as any); // Keep 'as any' here
 
     // Call 'postJson' without headers
     const result = await yopClient.postJson(mockApiUri, mockParams);
 
     // Check if getAuthHeaders was called correctly for POST JSON
     // Note: YopClient seems to pass the object itself, not stringified JSON to SDK
-    const { RsaV3Util } = jest.requireMock('yop-nodejs-sdk');
-    expect(RsaV3Util.getAuthHeaders).toHaveBeenCalledWith({
+    // Check if the spy was called correctly
+    expect(getAuthHeadersSpy).toHaveBeenCalledWith({
         appKey: mockConfig.appKey,
         secretKey: mockConfig.secretKey,
         method: 'POST',
@@ -178,7 +176,7 @@ describe('YopClient', () => {
         params: mockParams, // Body object passed as params for signing
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      `${mockConfig.yeepayApiBaseUrl}${mockApiUri}`, // Full URL from mockConfig
+      `${mockConfig.yopApiBaseUrl}/yop-center${mockApiUri}`, // Added /yop-center
       {
         method: 'POST',
         headers: expect.any(Headers), // Headers object created internally
@@ -186,8 +184,8 @@ describe('YopClient', () => {
         signal: mockSignal,
       }
     );
-     const { VerifyUtils } = jest.requireMock('yop-nodejs-sdk');
-     expect(VerifyUtils.isValidRsaResult).toHaveBeenCalledWith({
+     // Check if the spy was called correctly
+     expect(isValidRsaResultSpy).toHaveBeenCalledWith({
         data: JSON.stringify(mockSuccessResponseData),
         sign: mockYopSignHeader,
         publicKey: mockConfig.yopPublicKey,
@@ -195,25 +193,26 @@ describe('YopClient', () => {
     expect(result).toEqual(mockSuccessResponseData); // postJson returns the full response data
   });
 
-  test('should handle Yop business error (code !== OPR00000)', async () => {
-    const mockBusinessErrorData = { code: 'BIZ12345', message: 'Business Error', result: null };
+  test('should handle Yop business error (state !== SUCCESS)', async () => {
+    // Add state: 'FAILURE' to trigger the primary error check in YopClient
+    const mockBusinessErrorData = { state: 'FAILURE', error: { code: 'BIZ12345', message: 'Business Error' } };
     const mockResponse = {
       ok: true,
       status: 200,
       headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      json: jest.fn().mockResolvedValue(mockBusinessErrorData),
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockBusinessErrorData)), // Add text() method
+      json: jest.fn<() => Promise<any>>().mockResolvedValue(mockBusinessErrorData),
+      text: jest.fn<() => Promise<string>>().mockResolvedValue(JSON.stringify(mockBusinessErrorData)),
     };
-    mockFetch.mockResolvedValue(mockResponse);
+    mockFetch.mockResolvedValue(mockResponse as any);
 
-    // Check for standard Error with specific message
+    // Check for the error message thrown by the state check in YopClient
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
-      `Yeepay API Business Error: Code=${mockBusinessErrorData.code}, Message=${mockBusinessErrorData.message}`
+       `Yeepay API Business Error: State=${mockBusinessErrorData.state}, Code=${mockBusinessErrorData.error.code}, Message=${mockBusinessErrorData.error.message}`
     );
 
-    // Signature should still be verified if present using mockConfig
-    const { VerifyUtils } = jest.requireMock('yop-nodejs-sdk');
-    expect(VerifyUtils.isValidRsaResult).toHaveBeenCalledWith({
+    // Signature should still be verified if present
+    // Check if the spy was called correctly
+    expect(isValidRsaResultSpy).toHaveBeenCalledWith({
         data: JSON.stringify(mockBusinessErrorData),
         sign: mockYopSignHeader,
         publicKey: mockConfig.yopPublicKey,
@@ -224,21 +223,23 @@ describe('YopClient', () => {
     const mockHttpErrorResponse = {
       ok: false,
       status: 500,
-      statusText: 'Internal Server Error',
-      headers: new Headers(), // No sign header in HTTP error usually
-      text: jest.fn().mockResolvedValue('Server error details'), // Use text() for non-JSON error body
+      statusText: 'Internal Server Error', // Add statusText for completeness
+      headers: new Headers(),
+      text: jest.fn<() => Promise<string>>().mockResolvedValue('Server error details'), // Explicit type for jest.fn
+      // json might not exist or throw, mock it safely
+      json: jest.fn<() => Promise<any>>().mockRejectedValue(new Error('No JSON body')), // Explicit type for jest.fn
     };
-    mockFetch.mockResolvedValue(mockHttpErrorResponse);
+    mockFetch.mockResolvedValue(mockHttpErrorResponse as any); // Keep 'as any' here
 
-    // Check for standard Error with specific message
+    // Check for standard Error with specific message (using Details= instead of Body=)
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
-      `Yeepay API HTTP Error: Status=${mockHttpErrorResponse.status}, Body=Server error details`
+      `Yeepay API HTTP Error: Status=${mockHttpErrorResponse.status}, Details=Server error details`
     );
 
     // Signature verification might not happen or might fail depending on YopClient logic for HTTP errors
     // Based on YopClient code, it tries to read text() and then throws, so verify might not be called.
-    const { VerifyUtils } = jest.requireMock('yop-nodejs-sdk');
-    expect(VerifyUtils.isValidRsaResult).not.toHaveBeenCalled();
+    // Check if the spy was called correctly
+    expect(isValidRsaResultSpy).not.toHaveBeenCalled();
   });
 
   test('should handle signature verification failure', async () => {
@@ -246,19 +247,19 @@ describe('YopClient', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      json: jest.fn().mockResolvedValue(mockSuccessResponseData),
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockSuccessResponseData)), // Add text() method
+      json: jest.fn<() => Promise<any>>().mockResolvedValue(mockSuccessResponseData), // Explicit type for jest.fn
+      text: jest.fn<() => Promise<string>>().mockResolvedValue(JSON.stringify(mockSuccessResponseData)), // Explicit type for jest.fn
     };
-    mockFetch.mockResolvedValue(mockResponse);
-    (VerifyUtils.isValidRsaResult as jest.Mock).mockReturnValue(false); // Simulate verification failure
+    mockFetch.mockResolvedValue(mockResponse as any); // Keep 'as any' here
+    isValidRsaResultSpy.mockReturnValue(false); // Simulate verification failure
 
     // Check for standard Error with specific message
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
       'Invalid response signature from Yeepay'
     );
 
-    const { VerifyUtils } = jest.requireMock('yop-nodejs-sdk');
-    expect(VerifyUtils.isValidRsaResult).toHaveBeenCalledWith({
+    // Check if the spy was called correctly
+    expect(isValidRsaResultSpy).toHaveBeenCalledWith({
         data: JSON.stringify(mockSuccessResponseData),
         sign: mockYopSignHeader,
         publicKey: mockConfig.yopPublicKey,
@@ -269,11 +270,11 @@ describe('YopClient', () => {
     const mockResponse = {
       ok: true,
       status: 200,
-      headers: new Headers(), // 缺少 x-yop-sign
-      json: jest.fn().mockResolvedValue(mockSuccessResponseData),
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockSuccessResponseData)), // Add text() method
+      headers: new Headers(), // Missing x-yop-sign
+      json: jest.fn<() => Promise<any>>().mockResolvedValue(mockSuccessResponseData), // Explicit type for jest.fn
+      text: jest.fn<() => Promise<string>>().mockResolvedValue(JSON.stringify(mockSuccessResponseData)), // Explicit type for jest.fn
     };
-    mockFetch.mockResolvedValue(mockResponse);
+    mockFetch.mockResolvedValue(mockResponse as any); // Keep 'as any' here
 
     // YopClient logs a warning but doesn't throw an error just for missing sign header on success
     // It proceeds to parse JSON. Let's test the successful return value.
@@ -281,8 +282,8 @@ describe('YopClient', () => {
     expect(result).toEqual(mockSuccessResponseData);
 
     // Verification should not be called if header is missing
-    const { VerifyUtils } = jest.requireMock('yop-nodejs-sdk');
-    expect(VerifyUtils.isValidRsaResult).not.toHaveBeenCalled();
+    // Check if the spy was called correctly
+    expect(isValidRsaResultSpy).not.toHaveBeenCalled();
     // Check console.warn was called (optional, requires spyOn)
     // const warnSpy = jest.spyOn(console, 'warn');
     // expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Missing x-yop-sign header'));
@@ -291,29 +292,29 @@ describe('YopClient', () => {
 
   test('should handle fetch network error', async () => {
     const networkError = new Error('Network connection failed');
-    mockFetch.mockRejectedValue(networkError);
+    mockFetch.mockRejectedValue(networkError as any); // Use 'as any'
 
     // Check for standard Error with specific message
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
       `Network error calling Yeepay API: ${networkError.message}`
     );
-     const { VerifyUtils } = jest.requireMock('yop-nodejs-sdk');
-     expect(VerifyUtils.isValidRsaResult).not.toHaveBeenCalled();
+     // Check if the spy was called correctly
+     expect(isValidRsaResultSpy).not.toHaveBeenCalled();
   });
 
   test('should handle fetch timeout (AbortError)', async () => {
     // Create an error that mimics AbortError structure recognized by YopClient's catch block
     const abortError = new Error('The operation was aborted.'); // Message YopClient uses
     abortError.name = 'AbortError'; // Name YopClient checks
-    mockFetch.mockRejectedValue(abortError);
+    mockFetch.mockRejectedValue(abortError as any); // Use 'as any'
     mockSignal.aborted = true; // Ensure signal state is consistent
 
     // Check for the specific timeout error message thrown by YopClient (line 159)
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
        /Yeepay API request timed out after \d+(\.\d+)? seconds./
-    );
-    const { VerifyUtils } = jest.requireMock('yop-nodejs-sdk');
-    expect(VerifyUtils.isValidRsaResult).not.toHaveBeenCalled();
+   );
+   // Check if the spy was called correctly
+   expect(isValidRsaResultSpy).not.toHaveBeenCalled();
   });
 
    test('should handle invalid JSON response', async () => {
@@ -321,19 +322,18 @@ describe('YopClient', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      // Simulate text() returning invalid JSON, and json() failing
-      text: jest.fn().mockResolvedValue('Invalid JSON String'),
-      json: jest.fn().mockRejectedValue(new SyntaxError('Unexpected token I in JSON at position 0')),
+      text: jest.fn<() => Promise<string>>().mockResolvedValue('Invalid JSON String'), // Explicit type for jest.fn
+      json: jest.fn<() => Promise<any>>().mockRejectedValue(new SyntaxError('Unexpected token I in JSON at position 0')), // Explicit type for jest.fn
     };
-    mockFetch.mockResolvedValue(mockResponse);
+    mockFetch.mockResolvedValue(mockResponse as any); // Keep 'as any' here
 
     // Check for the specific JSON parsing error message from YopClient
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
       'Invalid JSON response received from Yeepay API: Invalid JSON String' // Error includes raw text
     );
     // Signature verification happens *before* JSON parse attempt in YopClient
-    const { VerifyUtils } = jest.requireMock('yop-nodejs-sdk');
-    expect(VerifyUtils.isValidRsaResult).toHaveBeenCalledWith({
+    // Check if the spy was called correctly
+    expect(isValidRsaResultSpy).toHaveBeenCalledWith({
         data: 'Invalid JSON String', // Verification uses the raw text
         sign: mockYopSignHeader,
         publicKey: mockConfig.yopPublicKey,
@@ -349,13 +349,12 @@ describe('YopClient', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      // Simulate text() returning invalid JSON, and json() failing
-      text: jest.fn().mockResolvedValue(mockInvalidJsonResponseText),
-      json: jest.fn().mockRejectedValue(new SyntaxError('Unexpected token < in JSON at position 0')),
+      text: jest.fn<() => Promise<string>>().mockResolvedValue(mockInvalidJsonResponseText), // Explicit type for jest.fn
+      json: jest.fn<() => Promise<any>>().mockRejectedValue(new SyntaxError('Unexpected token < in JSON at position 0')), // Explicit type for jest.fn
     };
-    mockFetch.mockResolvedValue(mockResponse);
+    mockFetch.mockResolvedValue(mockResponse as any); // Keep 'as any' here
     // Assume verification passes on the raw text for this edge case test
-    (VerifyUtils.isValidRsaResult as jest.Mock).mockReturnValue(true);
+    isValidRsaResultSpy.mockReturnValue(true);
 
     // Check for the specific JSON parsing error message
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
@@ -363,8 +362,8 @@ describe('YopClient', () => {
     );
 
     // Verification *is* called before JSON parsing attempt because sign header exists
-    const { VerifyUtils } = jest.requireMock('yop-nodejs-sdk');
-    expect(VerifyUtils.isValidRsaResult).toHaveBeenCalledWith({
+    // Check if the spy was called correctly
+    expect(isValidRsaResultSpy).toHaveBeenCalledWith({
         data: mockInvalidJsonResponseText,
         sign: mockYopSignHeader,
         publicKey: mockConfig.yopPublicKey,

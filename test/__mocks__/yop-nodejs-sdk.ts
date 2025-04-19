@@ -1,4 +1,4 @@
-// test/__mocks__/yop-nodejs-sdk.ts
+// test/__mocks__/yop-typescript-sdk.ts
 export const RsaV3Util = {
   getAuthHeaders: jest.fn().mockReturnValue({
     'x-yop-appkey': 'mock-appkey',

@@ -1,7 +1,6 @@
-// ../yop-typescript-sdk/src/YopClient.ts
-import { RsaV3Util } from './utils/RsaV3Util.js'; // Assuming utils will be copied here
-import { VerifyUtils } from './utils/VerifyUtils.js'; // Assuming utils will be copied here
-import type { YopConfig, YopRequestOptions, ContentType, YopResponse } from './types.js'; // Import types
+import { RsaV3Util } from './utils/RsaV3Util.js'; // Restore .js extension
+import { VerifyUtils } from './utils/VerifyUtils.js'; // Restore .js extension
+import type { YopConfig, YopRequestOptions, ContentType, YopResponse } from './types.js'; // Restore .js extension
 
 export class YopClient {
   private config: YopConfig;
@@ -13,24 +12,26 @@ export class YopClient {
     }
     this.config = {
         ...config,
-        yeepayApiBaseUrl: config.yeepayApiBaseUrl ?? 'https://openapi.yeepay.com', // Set default base URL
+        yopApiBaseUrl: config.yopApiBaseUrl ?? 'https://openapi.yeepay.com', // Set default base URL
     };
   }
 
   public async request<T extends YopResponse = YopResponse>(options: YopRequestOptions): Promise<T> {
     const { method, apiUrl, params, body } = options;
     // Read config from instance property
-    const { appKey, secretKey, yopPublicKey, yeepayApiBaseUrl } = this.config;
+    const { appKey, secretKey, yopPublicKey, yopApiBaseUrl: yopApiBaseUrl } = this.config;
     const timeout = options.timeout ?? this.timeout;
     const contentType = options.contentType ?? (method === 'POST' ? 'application/x-www-form-urlencoded' : 'application/json');
     let requestBodyString: string | undefined;
 
     let fullFetchUrl: URL;
     let sdkHeaders: Record<string, string> = {};
-
-    const fetchPath = `/yop-center${apiUrl}`;
-    // Ensure yeepayApiBaseUrl is not undefined (handled in constructor)
-    fullFetchUrl = new URL(fetchPath, yeepayApiBaseUrl!);
+    
+    // Construct the full URL, ensuring exactly one slash between base and api path
+    const yopCenterBasePath = `${yopApiBaseUrl!.replace(/\/$/, '')}/yop-center`; // Ensure base ends without / and add /yop-center
+    const cleanedApiUrl = apiUrl.startsWith('/') ? apiUrl.substring(1) : apiUrl; // Ensure api path starts without /
+    const fullUrlString = `${yopCenterBasePath}/${cleanedApiUrl}`; // Join with exactly one /
+    fullFetchUrl = new URL(fullUrlString); // Create URL object from the complete string
 
     if (method === 'GET' && params) {
        Object.entries(params).forEach(([key, value]) => {
@@ -104,6 +105,7 @@ export class YopClient {
 
     let response: Response;
     try {
+      // console.info(`[YopClient] fetch: ${fullFetchUrl.toString()}`);
       response = await fetch(fullFetchUrl.toString(), fetchOptions);
       clearTimeout(timeoutId);
     } catch (fetchError) {
@@ -123,10 +125,9 @@ export class YopClient {
         }
     } else {
         // Decide if missing signature is always an error, or only for successful responses
-        // console.warn(`Missing x-yop-sign header: ${method} ${apiUrl}`);
         if (response.ok) {
              // Potentially throw an error here if signature is mandatory for success
-             console.warn(`[YopClient] Missing x-yop-sign header in successful response: ${method} ${apiUrl}`);
+             // console.info(`[YopClient] Missing x-yop-sign header in successful response: ${method} ${apiUrl} ${responseBodyText}`);
         }
     }
 
@@ -144,9 +145,27 @@ export class YopClient {
 
     let responseData: T;
     try {
-        responseData = JSON.parse(responseBodyText) as T;
+        // console.info(`responseBodyText: ${responseBodyText}`);
+        // Handle empty successful response gracefully
+        if (response.ok && responseBodyText.trim() === '') {
+            console.warn('[YopClient] Received empty response body for a successful request.');
+            // Return a default structure or an empty object, cast as T.
+            // Adjust this based on how downstream code expects to handle empty success.
+            // Using an empty object might be safer if T is expected to be an object.
+            responseData = {} as T;
+        } else {
+            responseData = JSON.parse(responseBodyText) as T;
+        }
     } catch (parseError) {
-        throw new Error(`Invalid JSON response received from Yeepay API: ${responseBodyText}`);
+        // Only throw parse error if the body was not empty
+        if (responseBodyText.trim() !== '') {
+            throw new Error(`Invalid JSON response received from Yeepay API: ${responseBodyText}`);
+        } else {
+            // If body was empty and parsing still failed (shouldn't happen with the check above),
+            // re-throw or handle differently. For now, let's assume the check prevents this.
+             console.error('[YopClient] Error parsing empty response body (unexpected).');
+             responseData = {} as T; // Fallback
+        }
     }
 
     // Optional: Centralized business error check based on YopResponse structure
