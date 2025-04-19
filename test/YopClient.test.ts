@@ -43,7 +43,7 @@ describe('YopClient', () => {
     'x-yop-appkey': 'test-app-key',
     'x-yop-request-id': 'mock-request-id',
     'x-yop-date': new Date().toISOString(),
-    'x-yop-sdk-version': 'yop-typescript-sdk/0.1.1', // 根据实际使用的SDK版本调整
+    'x-yop-sdk-version': 'yop-typescript-sdk/0.1.3', // 根据实际使用的SDK版本调整
     'x-yop-sdk-lang': 'nodejs',
   };
   const mockSuccessResponseData = { code: 'OPR00000', message: 'Success', result: { data: 'ok' } };

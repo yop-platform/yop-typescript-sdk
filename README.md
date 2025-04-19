@@ -204,7 +204,7 @@ Contributions are highly welcome! We appreciate your help in improving the SDK. 
 
 **Reporting Bugs:**
 
-- If you find a bug, please check the [Issues](https://github.com/your-username/yop-typescript-sdk/issues) section to see if it has already been reported.
+- If you find a bug, please check the [Issues](https://github.com/yop-platform/yop-typescript-sdk/issues) section to see if it has already been reported.
 - If not, open a new issue. Provide a clear title, a detailed description of the bug, steps to reproduce it, and the expected vs. actual behavior. Include relevant code snippets or error messages if possible.
 
 **Suggesting Enhancements:**
@@ -215,7 +215,7 @@ Contributions are highly welcome! We appreciate your help in improving the SDK. 
 **Pull Requests:**
 
 1.  **Fork the repository:** Click the "Fork" button on the top right of the repository page.
-2.  **Clone your fork:** `git clone https://github.com/your-username/yop-typescript-sdk.git`
+2.  **Clone your fork:** `git clone https://github.com/yop-platform/yop-typescript-sdk.git`
 3.  **Create a branch:** `git checkout -b feature/your-feature-name` or `bugfix/issue-number`.
 4.  **Make your changes:** Implement your feature or fix the bug.
 5.  **Add/Update Tests:** Ensure your changes are covered by tests. Add new tests if necessary.

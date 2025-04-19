@@ -204,7 +204,7 @@ async function queryPayment(orderId: string) {
 
 **报告 Bug：**
 
-- 如果您发现了一个 bug，请检查 [Issues](https://github.com/your-username/yop-typescript-sdk/issues) 部分，看看是否已经有人报告过。
+- 如果您发现了一个 bug，请检查 [Issues](https://github.com/yop-platform/yop-typescript-sdk/issues) 部分，看看是否已经有人报告过。
 - 如果没有，请创建一个新的 issue。提供清晰的标题、详细的 bug 描述、重现步骤以及预期行为与实际行为的对比。如果可能，请包含相关的代码片段或错误消息。
 
 **建议增强功能：**
@@ -215,7 +215,7 @@ async function queryPayment(orderId: string) {
 **Pull Request：**
 
 1.  **Fork 仓库：** 点击仓库页面右上角的“Fork”按钮。
-2.  **克隆您的 fork：** `git clone https://github.com/your-username/yop-typescript-sdk.git`
+2.  **克隆您的 fork：** `git clone https://github.com/yop-platform/yop-typescript-sdk.git`
 3.  **创建分支：** `git checkout -b feature/your-feature-name` 或 `bugfix/issue-number`。
 4.  **进行更改：** 实现您的功能或修复 bug。
 5.  **添加/更新测试：** 确保您的更改被测试覆盖。如有必要，添加新测试。

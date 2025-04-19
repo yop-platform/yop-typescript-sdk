@@ -28,7 +28,7 @@ describe('YopClient Integration Test for /rest/v1.0/aggpay/pre-pay', () => {
     // Read public key file
     const __filename = fileURLToPath(import.meta.url);
     const currentDir = dirname(__filename);
-    const publicKeyPath = path.resolve(currentDir, '..', process.env.YOP_PUBLIC_KEY_PATH || 'yop_platform_rsa_cert_rsa.cer'); // Use currentDir instead of __dirname
+    const publicKeyPath = path.resolve(currentDir, '..', process.env.YOP_PUBLIC_KEY_PATH || 'src/assets/yop_platform_rsa_cert_rsa.cer'); // Use currentDir instead of __dirname
     let yopPublicKey: string;
     try {
       yopPublicKey = fs.readFileSync(publicKeyPath, 'utf-8');
