@@ -18,8 +18,8 @@ import type {
  * passed to the constructor or via environment variables.
  */
 export class YopClient {
-  private config: YopConfig;
-  private timeout = 10000; // Default timeout
+  private readonly config: YopConfig;
+  private readonly timeout: number = 10000; // Default timeout, added explicit type
 
   /**
    * Creates an instance of YopClient.

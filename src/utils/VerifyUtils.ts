@@ -228,33 +228,59 @@ export class VerifyUtils {
    * @returns Extracted business result
    */
   static getBizResult(content: string, format?: string): string {
+    // WARNING: This method uses fragile string manipulation (indexOf, substr)
+    // to extract data based on assumed delimiters ("result", "ts", "</state>").
+    // It's highly recommended to parse the content properly (e.g., using JSON.parse
+    // if format is 'json') instead of relying on these string operations.
     if (!format) {
       return content;
     }
 
-    let local = -1;
-    let result = "";
-    let tmp_result = "";
-    let length = 0;
+    let local: number;
+    let result: string;
+    // let tmp_result = ""; // tmp_result seems unused or incorrectly used below
+    // let length = 0; // length seems unused or incorrectly used below
 
     switch (format) {
       case 'json':
+        // Attempt to find the start of the result object after "result":
         local = content.indexOf('"result"');
-        result = content.substr(local);
-        length = tmp_result.length; // This seems wrong, tmp_result is empty
-        result = result.substr(length + 3); // This logic seems flawed
-        result = result.substr(0, result.lastIndexOf('"ts"'));
-        result = result.substr(0, result.length - 4);
-        return result;
-      default:
-        local = content.indexOf('"</state>"'); // This seems wrong, likely meant '</state>'
-        result = content.substr(local);
-        tmp_result = '</state>';
-        length = tmp_result.length;
-        result = result.substr(length + 4); // This logic seems flawed
-        result = result.substr(0, result.lastIndexOf('"ts"'));
-        result = result.substr(0, -2); // Negative index likely unintended
-        return result;
+        if (local === -1) return ""; // Or throw error? Handle case where "result" is not found
+        // Find the opening brace after "result":
+        const openBraceIndex = content.indexOf('{', local + 8); // Search after "result":
+        if (openBraceIndex === -1) return ""; // Handle case where '{' is not found
+
+        // Find the closing brace and the subsequent comma before "ts"
+        // This is still fragile. A proper JSON parse is much better.
+        const closingPartIndex = content.lastIndexOf('},"ts"');
+        if (closingPartIndex === -1 || closingPartIndex < openBraceIndex) return ""; // Handle case where closing part is not found
+
+        result = content.substring(openBraceIndex, closingPartIndex + 1); // Extract content between {}
+        try {
+          // Validate if the extracted part is valid JSON (optional but good)
+          JSON.parse(result);
+          return result;
+        } catch (e) {
+          console.error("Extracted 'result' is not valid JSON in getBizResult:", result);
+          return ""; // Return empty or throw if validation fails
+        }
+
+      default: // Assuming XML-like structure?
+        // Corrected potential typo: '</state>' instead of '"</state>"'
+        local = content.indexOf('</state>');
+        if (local === -1) return ""; // Handle case where '</state>' is not found
+
+        // Find the start of the relevant content after '</state>'
+        // The original logic `result.substr(length + 4)` was unclear. Assuming we need content after </state>.
+        const startIndex = local + '</state>'.length;
+
+        // Find the end before ',"ts"' (assuming this delimiter exists)
+        const endIndex = content.lastIndexOf(',"ts"'); // Assuming ,"ts" marks the end
+        if (endIndex === -1 || endIndex <= startIndex) return ""; // Handle case where end delimiter is not found
+
+        result = content.substring(startIndex, endIndex).trim(); // Extract and trim whitespace
+        // The original `result.substr(0, -2)` was likely incorrect.
+        return result; // Return the extracted substring
     }
   }
 }

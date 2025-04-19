@@ -4,41 +4,39 @@ import crypto from 'crypto';
 import md5 from 'md5';
 import { AuthHeaderOptions } from './types.js';
 
-// Extend Date prototype with Format method
-declare global {
-  interface Date {
-    Format(fmt: string): string;
-  }
-}
-
-Date.prototype.Format = function (fmt: string): string {
+// Helper function for date formatting (replaces Date.prototype extension)
+function formatDate(date: Date, fmt: string): string {
   const o: Record<string, number> = {
-    "M+": this.getMonth() + 1,                 // Month
-    "d+": this.getDate(),                      // Day
-    "h+": this.getHours(),                     // Hour
-    "m+": this.getMinutes(),                   // Minute
-    "s+": this.getSeconds(),                   // Second
-    "q+": Math.floor((this.getMonth() + 3) / 3), // Quarter
-    "S": this.getMilliseconds()                // Millisecond
+    "M+": date.getMonth() + 1,                 // Month
+    "d+": date.getDate(),                      // Day
+    "h+": date.getHours(),                     // Hour
+    "m+": date.getMinutes(),                   // Minute
+    "s+": date.getSeconds(),                   // Second
+    "q+": Math.floor((date.getMonth() + 3) / 3), // Quarter
+    "S": date.getMilliseconds()                // Millisecond
   };
 
-  if (/(y+)/.test(fmt)) {
-    fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+  let formatString = fmt; // Use a local variable to avoid modifying the input parameter directly
+
+  if (/(y+)/.test(formatString)) {
+    formatString = formatString.replace(RegExp.$1, (date.getFullYear() + "").substr(4 - RegExp.$1.length));
   }
 
   for (const k in o) {
-    if (new RegExp("(" + k + ")").test(fmt)) {
-      fmt = fmt.replace(
+    if (new RegExp("(" + k + ")").test(formatString)) {
+      const value = o[k]; // Get the value once
+      formatString = formatString.replace(
         RegExp.$1,
         (RegExp.$1.length === 1) ?
-          (o[k]!.toString()) : // Assert non-null: k is a valid key within this loop
-          (("00" + o[k]).substr(("" + o[k]).length))
+          (value!.toString()) : // Assert non-null, as k is a valid key of o
+          (("00" + value!).substr(("" + value!).length)) // Assert non-null here too
       );
     }
   }
 
-  return fmt;
-};
+  return formatString;
+}
+
 
 export class RsaV3Util {
   /**
@@ -56,7 +54,7 @@ export class RsaV3Util {
       }
     }
 
-    const timestamp = new Date().Format("yyyy-MM-ddThh:mm:ssZ");
+    const timestamp = formatDate(new Date(), "yyyy-MM-ddThh:mm:ssZ");
     const authString = 'yop-auth-v3/' + appKey + "/" + timestamp + "/1800";
     const HTTPRequestMethod = method;
     const CanonicalURI = url;
