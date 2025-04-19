@@ -103,9 +103,10 @@ export class YopClient {
           console.info(
             `[YopClient Config] Loaded YOP public key from path: ${resolvedPath}`,
           );
-        } catch (err) {
+        } catch (err: unknown) { // Type the caught error
+          const errorMessage = err instanceof Error ? err.message : String(err);
           console.warn(
-            `[YopClient Config] Failed to load YOP public key from path specified in YOP_PUBLIC_KEY_PATH (${envYopPublicKeyPath}): ${(err as Error).message}. Falling back...`,
+            `[YopClient Config] Failed to load YOP public key from path specified in YOP_PUBLIC_KEY_PATH (${envYopPublicKeyPath}): ${errorMessage}. Falling back...`,
           );
           // Fall through to default
         }
@@ -119,10 +120,11 @@ export class YopClient {
           console.info(
             `[YopClient Config] Loaded YOP public key from default file: ${defaultPublicKeyPath}`,
           );
-        } catch (err) {
+        } catch (err: unknown) { // Type the caught error
+          const errorMessage = err instanceof Error ? err.message : String(err);
           // If default file also fails, this is a critical error
           throw new Error(
-            `[YopClient Config] Failed to load YOP public key from default path (${defaultPublicKeyPath}): ${(err as Error).message}. Configuration failed.`,
+            `[YopClient Config] Failed to load YOP public key from default path (${defaultPublicKeyPath}): ${errorMessage}. Configuration failed.`,
           );
         }
       }
@@ -200,9 +202,10 @@ export class YopClient {
           url: apiUrl,
           params: params,
         });
-      } catch (sdkError) {
+      } catch (sdkError: unknown) { // Type the caught error
+        const errorMessage = sdkError instanceof Error ? sdkError.message : String(sdkError);
         throw new Error(
-          `Failed to generate YOP headers (GET with params): ${(sdkError as Error).message}`,
+          `Failed to generate YOP headers (GET with params): ${errorMessage}`,
         );
       }
     } else if (method === "POST" && body) {
@@ -214,9 +217,10 @@ export class YopClient {
           url: apiUrl,
           params: body, // Pass body object as params for signing
         });
-      } catch (sdkError) {
+      } catch (sdkError: unknown) { // Type the caught error
+        const errorMessage = sdkError instanceof Error ? sdkError.message : String(sdkError);
         throw new Error(
-          `Failed to generate YOP headers (POST): ${(sdkError as Error).message}`,
+          `Failed to generate YOP headers (POST): ${errorMessage}`,
         );
       }
 
@@ -237,9 +241,10 @@ export class YopClient {
           method: "GET",
           url: apiUrl,
         });
-      } catch (sdkError) {
+      } catch (sdkError: unknown) { // Type the caught error
+        const errorMessage = sdkError instanceof Error ? sdkError.message : String(sdkError);
         throw new Error(
-          `Failed to generate YOP headers (GET no params): ${(sdkError as Error).message}`,
+          `Failed to generate YOP headers (GET no params): ${errorMessage}`,
         );
       }
     } else {
@@ -273,15 +278,16 @@ export class YopClient {
       // console.info(`[YopClient] fetch: ${fullFetchUrl.toString()}`);
       response = await fetch(fullFetchUrl.toString(), fetchOptions);
       clearTimeout(timeoutId);
-    } catch (fetchError) {
+    } catch (fetchError: unknown) { // Type the caught error
       clearTimeout(timeoutId);
       if (fetchError instanceof Error && fetchError.name === "AbortError") {
         throw new Error(
           `Yeepay API request timed out after ${timeout / 1000} seconds.`,
         );
       }
+      const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
       throw new Error(
-        `Network error calling Yeepay API: ${(fetchError as Error).message}`,
+        `Network error calling Yeepay API: ${errorMessage}`,
       );
     }
 
@@ -312,10 +318,19 @@ export class YopClient {
       // Attempt to parse error response for more details
       let errorDetails = responseBodyText;
       try {
-        const parsedError = JSON.parse(responseBodyText);
-        errorDetails = `Code=${parsedError?.error?.code || parsedError?.code || "N/A"}, Message=${parsedError?.error?.message || parsedError?.message || responseBodyText}`;
-      } catch (e) {
+        // Type the parsed error more safely
+        const parsedError: unknown = JSON.parse(responseBodyText);
+        // Check if it's an object before accessing properties
+        if (typeof parsedError === 'object' && parsedError !== null) {
+            // Attempt to access potential error structures
+            const errorObj = (parsedError as any).error || parsedError; // Handle nested 'error' or top-level error
+            const code = errorObj?.code || "N/A";
+            const message = errorObj?.message || responseBodyText; // Fallback to raw text if message not found
+            errorDetails = `Code=${code}, Message=${message}`;
+        }
+      } catch (e: unknown) { // Type the caught error
         // Ignore parsing error, use raw text
+        // console.error(`Error parsing error response: ${e instanceof Error ? e.message : String(e)}`);
       }
       throw new Error(
         `Yeepay API HTTP Error: Status=${response.status}, Details=${errorDetails}`,
@@ -337,11 +352,12 @@ export class YopClient {
       } else {
         responseData = JSON.parse(responseBodyText) as T;
       }
-    } catch (parseError) {
+    } catch (parseError: unknown) { // Type the caught error
       // Only throw parse error if the body was not empty
       if (responseBodyText.trim() !== "") {
+        const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
         throw new Error(
-          `Invalid JSON response received from Yeepay API: ${responseBodyText}`,
+          `Invalid JSON response received from Yeepay API: ${responseBodyText}. Parse Error: ${errorMessage}`,
         );
       } else {
         // If body was empty and parsing still failed (shouldn't happen with the check above),
@@ -370,7 +386,7 @@ export class YopClient {
 
   public async get<T extends YopResponse = YopResponse>(
     apiUrl: string,
-    params: Record<string, any>,
+    params: Record<string, unknown>, // Align with YopRequestOptions
     timeout?: number,
   ): Promise<T> {
     return this.request<T>({ method: "GET", apiUrl, params, timeout });
@@ -378,7 +394,7 @@ export class YopClient {
 
   public async post<T extends YopResponse = YopResponse>(
     apiUrl: string,
-    body: Record<string, any>,
+    body: Record<string, unknown>, // Align with YopRequestOptions
     contentType: ContentType = "application/x-www-form-urlencoded",
     timeout?: number,
   ): Promise<T> {
@@ -393,7 +409,7 @@ export class YopClient {
 
   public async postJson<T extends YopResponse = YopResponse>(
     apiUrl: string,
-    body: Record<string, any>,
+    body: Record<string, unknown>, // Align with YopRequestOptions
     timeout?: number,
   ): Promise<T> {
     return this.request<T>({

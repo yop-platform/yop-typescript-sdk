@@ -6,17 +6,17 @@ export class HttpUtils {
    * @param value - The value to normalize
    * @returns Normalized string
    */
-  static normalize(value: any): string {
+  static normalize(value: string | number | boolean | undefined | null): string {
     let vStr = "";
     if (value) {
       const bytes = Buffer.from(value.toString(), 'utf-8');
       for (let i = 0; i < bytes.length; i++) {
         const byte = bytes[i];
-        const s = String.fromCharCode(byte);
+        const s = String.fromCharCode(byte!); // Assert non-null: loop guarantees it's defined
         if (s.match(/[0-9a-zA-Z._~-]/)) {
           vStr += s;
         } else {
-          vStr += '%' + byte.toString(16).toUpperCase();
+          vStr += '%' + byte!.toString(16).toUpperCase(); // Assert non-null: loop guarantees it's defined
         }
       }
     }
@@ -61,7 +61,8 @@ export class HttpUtils {
     const encoded: Record<string, string> = {};
     for (const k in req.paramMap) {
       const v = req.paramMap[k];
-      encoded[this.normalize(k)] = this.normalize(v);
+      // Cast v to any as HttpUtils.normalize is designed to handle various input types
+      encoded[this.normalize(k)] = this.normalize(v as any);
     }
     return encoded;
   }

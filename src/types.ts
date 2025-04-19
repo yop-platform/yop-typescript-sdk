@@ -44,8 +44,8 @@ export type ContentType = 'application/json' | 'application/x-www-form-urlencode
 export interface YopRequestOptions {
   method: 'GET' | 'POST';
   apiUrl: string;
-  params?: Record<string, any>;
-  body?: Record<string, any>;
+  params?: Record<string, unknown>; // Use unknown for safer type checking than any
+  body?: Record<string, unknown>;   // Use unknown for safer type checking than any
   contentType?: ContentType;
   timeout?: number;
 }

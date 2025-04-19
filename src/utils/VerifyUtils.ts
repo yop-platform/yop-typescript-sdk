@@ -71,7 +71,8 @@ export class VerifyUtils {
    */
   static getResult(str: string): string {
     const match = str.match(/"result"\s*:\s*({.*}),\s*"ts"/s);
-    return match ? match[1] : '';
+    // Use nullish coalescing to ensure match[1] provides a string even if undefined (though regex should capture if match exists)
+    return match ? (match[1] ?? '') : '';
   }
 
   /**
@@ -101,10 +102,12 @@ export class VerifyUtils {
     } else {
       try {
         const digital_envelope_arr = content.split('$');
-        const encryted_key_safe = this.base64_safe_handler(digital_envelope_arr[0]);
+        // Provide default empty string if array element is undefined
+        const encryted_key_safe = this.base64_safe_handler(digital_envelope_arr[0] ?? '');
         const decryted_key = this.rsaDecrypt(encryted_key_safe, this.key_format(isv_private_key));
         const biz_param_arr = this.aesDecrypt(
-          this.base64_safe_handler(digital_envelope_arr[1]),
+          // Provide default empty string if array element is undefined
+          this.base64_safe_handler(digital_envelope_arr[1] ?? ''),
           decryted_key
         ).split('$');
 

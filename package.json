@@ -9,7 +9,7 @@
     "clean": "rimraf dist",
     "tsc": "tsc",
     "build:watch": "tsc --watch",
-    "copy-assets": "copyfiles -a src/assets/**/* dist/assets",
+    "copy-assets": "copyfiles -u 1 \"src/assets/**\" dist",
     "build": "npm run clean && npm run tsc && npm run copy-assets",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "lint": "eslint src/**/*.ts",
@@ -20,9 +20,11 @@
     "urlsafe-base64": "^1.0.0"
   },
   "devDependencies": {
+    "@types/dotenv": "^6.1.1",
     "@types/jest": "^29.5.14",
     "@types/md5": "^2.3.5",
     "@types/node": "^18.19.86",
+    "@types/rimraf": "^3.0.2",
     "@types/urlsafe-base64": "^1.0.31",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",

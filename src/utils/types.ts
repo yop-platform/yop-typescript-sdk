@@ -11,18 +11,18 @@ export interface RequestOptions {
 export interface AuthHeaderOptions extends RequestOptions {
   method: 'GET' | 'POST'; // Use string literal type
   url: string;
-  params?: Record<string, any>;
+  params?: Record<string, unknown>; // Use unknown for safer type checking
 }
 
 export interface RequestParams {
   url: string;
-  params?: Record<string, any>;
+  params?: Record<string, unknown>; // Use unknown for safer type checking
   method: 'GET' | 'POST'; // Use string literal type
   // responseType?: ResponseType; // Removed axios specific type
 }
 
 export interface ParamMap {
-  [key: string]: any;
+  [key: string]: unknown; // Use unknown for safer type checking
 }
 
 export interface Request {

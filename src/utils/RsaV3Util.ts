@@ -31,7 +31,7 @@ Date.prototype.Format = function (fmt: string): string {
       fmt = fmt.replace(
         RegExp.$1,
         (RegExp.$1.length === 1) ?
-          (o[k].toString()) :
+          (o[k]!.toString()) : // Assert non-null: k is a valid key within this loop
           (("00" + o[k]).substr(("" + o[k]).length))
       );
     }
@@ -51,7 +51,8 @@ export class RsaV3Util {
 
     if (config.contentType === 'application/json') {
       for (const key in params) {
-        params[key] = HttpUtils.normalize(params[key]);
+        // Cast params[key] to any as HttpUtils.normalize is designed to handle various input types
+        params[key] = HttpUtils.normalize(params[key] as any);
       }
     }
 
@@ -134,7 +135,7 @@ export class RsaV3Util {
    * @param method - HTTP method
    * @returns Canonical query string
    */
-  static getCanonicalQueryString(params: Record<string, any>, method: string): string {
+  static getCanonicalQueryString(params: Record<string, unknown>, method: string): string {
     if (method.toLowerCase() === 'post') return '';
     if (Object.keys(params).length === 0) return '';
     return this.getCanonicalParams(params);
@@ -175,7 +176,7 @@ export class RsaV3Util {
    * @param type - Content type
    * @returns Canonical parameters string
    */
-  static getCanonicalParams(params: Record<string, any> = {}, type?: string): string {
+  static getCanonicalParams(params: Record<string, unknown> = {}, type?: string): string {
     const paramStrings: string[] = [];
 
     for (const key in params) {
@@ -193,9 +194,12 @@ export class RsaV3Util {
       let normalizedValue: string;
 
       if (type === 'form-urlencoded') {
-        normalizedValue = HttpUtils.normalize(HttpUtils.normalize(value));
+        // Cast value to any as HttpUtils.normalize is designed to handle various input types
+        normalizedValue = HttpUtils.normalize(HttpUtils.normalize(value as any));
       } else {
-        normalizedValue = HttpUtils.normalize(value.toString().trim());
+        // Cast value to any as HttpUtils.normalize is designed to handle various input types
+        // Note: normalize itself calls toString() if value is not null/undefined
+        normalizedValue = HttpUtils.normalize((value as any)?.toString().trim()); // Added optional chaining for safety before trim
       }
 
       paramStrings.push(normalizedKey + '=' + normalizedValue);
@@ -221,7 +225,7 @@ export class RsaV3Util {
    * @returns SHA256 hash as hex string
    */
   static getSha256AndHexStr(
-    params: Record<string, any>,
+    params: Record<string, unknown>,
     config: { contentType: string },
     method: string
   ): string {
