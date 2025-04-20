@@ -6,6 +6,11 @@ export class HttpUtils {
    * @param value - The value to normalize
    * @returns Normalized string
    */
+  /**
+   * Normalizes a value by encoding special characters according to RFC 3986
+   * @param value - The value to normalize
+   * @returns Normalized string
+   */
   static normalize(value: string | number | boolean | undefined | null): string {
     let vStr = "";
     if (value) {
@@ -14,9 +19,26 @@ export class HttpUtils {
         const byte = bytes[i];
         const s = String.fromCharCode(byte!); // Assert non-null: loop guarantees it's defined
         if (s.match(/[0-9a-zA-Z._~-]/)) {
+          // RFC 3986 unreserved characters
           vStr += s;
         } else {
-          vStr += '%' + byte!.toString(16).toUpperCase(); // Assert non-null: loop guarantees it's defined
+          // Handle special cases according to RFC 3986
+          if (s === '+') {
+            vStr += '%20'; // Convert + to %20
+          } else if (s === '*') {
+            vStr += '%2A'; // Convert * to %2A
+          } else if (s === '%' && i + 2 < bytes.length) {
+            // Check if this is %7E which should be converted to ~
+            const nextTwoChars = String.fromCharCode(bytes[i+1]!) + String.fromCharCode(bytes[i+2]!);
+            if (nextTwoChars.toUpperCase() === '7E') {
+              vStr += '~';
+              i += 2; // Skip the next two bytes
+            } else {
+              vStr += '%' + byte!.toString(16).toUpperCase();
+            }
+          } else {
+            vStr += '%' + byte!.toString(16).toUpperCase();
+          }
         }
       }
     }

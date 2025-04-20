@@ -17,7 +17,7 @@
 - **TypeScript 优先：** 完全类型化，提供更好的开发者体验和安全性。
 - **ES Modules：** 现代模块系统，实现更好的 tree-shaking 和兼容性。
 - **原生 `fetch`：** 使用标准的 Fetch API，在 Node.js (v18+) 和现代浏览器中可用。
-- **安全：** 实现 YOP API 的 RSA 签名要求。
+- **安全：** 实现 YOP API 的 RSA 签名要求，支持 UTF-8 编码处理国际字符。
 - **灵活：** 支持 `application/x-www-form-urlencoded` 和 `application/json` 两种请求类型。
 
 ## 安装
@@ -39,7 +39,7 @@ pnpm add @yeepay/yop-typescript-sdk
 1.  **通过环境变量（推荐，更简单）：**
     如果在构造函数中未传递配置对象，SDK 将自动尝试从以下环境变量加载所需配置：
     - `YOP_APP_KEY`: (必需) 您的易宝应用 AppKey。
-    - `YOP_SECRET_KEY`: (必需) 您应用的私钥（原始字符串，PEM 格式 PKCS#1 或 PKCS#8）。**请妥善保管！**
+    - `YOP_SECRET_KEY`: (必需) 您应用的私钥（原始字符串，PEM 格式 PKCS#1 或 PKCS#8）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**
     - `YOP_PUBLIC_KEY`: (必需) 易宝平台的公钥（原始字符串，PEM 格式）。这是公钥*内容*，不是文件路径。请从易宝开发者门户下载。
     - `YOP_API_BASE_URL`: (可选) 易宝 API 的基础 URL。默认为生产环境 (`https://openapi.yeepay.com`)。
 
@@ -101,7 +101,7 @@ pnpm add @yeepay/yop-typescript-sdk
 当您向 `YopClient` 构造函数传递配置对象时，将使用这些选项。如果对象中省略了某个选项，SDK 将尝试回退到相应的环境变量。
 
 - `appKey` (string, 必需): 您的唯一应用标识符，由易宝提供。（回退到 `process.env.YOP_APP_KEY`）。
-- `secretKey` (string, 必需): 您应用的私钥（PEM 格式的原始字符串）。**请妥善保管！**（回退到 `process.env.YOP_SECRET_KEY`）。
+- `secretKey` (string, 必需): 您应用的私钥（PEM 格式的原始字符串）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**（回退到 `process.env.YOP_SECRET_KEY`）。
 - `yopPublicKey` (string, 必需): 用于验证响应的易宝平台公钥（PEM 格式的原始字符串）。这必须是密钥*内容*，而不是文件路径。（回退到 `process.env.YOP_PUBLIC_KEY`）。
 - `yeepayApiBaseUrl` (string, 可选): 易宝 API 的基础 URL。（回退到 `process.env.YOP_API_BASE_URL`，然后默认为 `https://openapi.yeepay.com`）。
 
@@ -121,7 +121,7 @@ async function createPayment() {
     merchantNo: process.env.YOP_MERCHANT_NO!, // 您的商户编号
     orderId: `SDK_TEST_${Date.now()}`, // 唯一的订单 ID
     orderAmount: "0.01", // 金额（字符串格式）
-    goodsName: "SDK Test Product",
+    goodsName: "SDK Test Product", // 支持 UTF-8 字符（如中文）
     notifyUrl: process.env.YOP_NOTIFY_URL!, // 用于接收支付通知的 URL
     userIp: "127.0.0.1", // 终端用户的 IP 地址
     scene: "ONLINE", // 交易场景

@@ -66,6 +66,8 @@ export class RsaV3Util {
       'x-yop-content-sha256': RsaV3Util.getSha256AndHexStr(params, config, method),
       'x-yop-request-id': RsaV3Util.uuid(),
       // Add other headers here if they need to be signed, e.g., 'x-yop-date'
+      // Add content-type if it exists in the config
+      ...(config.contentType && { 'content-type': config.contentType }),
     };
 
     // Generate CanonicalHeaders and signedHeaders string according to YOP spec
@@ -81,7 +83,7 @@ export class RsaV3Util {
     // Prepare all headers for the actual HTTP request
     const allHeaders: Record<string, string> = {
       ...headersToSign, // Include signed headers
-      'x-yop-sdk-version': '0.2.1', // 根据实际使用的SDK版本调整
+      'x-yop-sdk-version': '0.2.5', // 根据实际使用的SDK版本调整
       'x-yop-sdk-lang': '@yeepay/yop-typescript-sdk',
       // Authorization header will be added after signing
     };
@@ -116,15 +118,23 @@ export class RsaV3Util {
     const canonicalEntries: string[] = [];
     const signedHeaderNames: string[] = [];
 
-    // Normalize, sort, and format headers
+    // Normalize, sort, and format all provided headers according to YOP spec
     Object.keys(headersToSign)
-      .map(key => key.toLowerCase()) // Convert keys to lowercase
+      .map(key => key.toLowerCase()) // Convert keys to lowercase for sorting and processing
       .sort() // Sort keys alphabetically
       .forEach(lowerCaseKey => {
-        const originalKey = Object.keys(headersToSign).find(k => k.toLowerCase() === lowerCaseKey)!; // Find original case key
+        // Find the original key to get the original value
+        const originalKey = Object.keys(headersToSign).find(k => k.toLowerCase() === lowerCaseKey);
+        if (originalKey === undefined) return; // Should not happen, but safety check
+
         const value = headersToSign[originalKey]?.trim() ?? ''; // Get value, trim whitespace
-        canonicalEntries.push(`${lowerCaseKey}:${value}`);
-        signedHeaderNames.push(lowerCaseKey);
+
+        // URL-encode both the lowercase name and the trimmed value as per documentation
+        const encodedName = HttpUtils.normalize(lowerCaseKey);
+        const encodedValue = HttpUtils.normalize(value);
+
+        canonicalEntries.push(`${encodedName}:${encodedValue}`);
+        signedHeaderNames.push(lowerCaseKey); // signedHeadersString uses lowercase names *before* encoding
       });
 
     const canonicalHeaderString = canonicalEntries.join('\n');
@@ -205,7 +215,7 @@ export class RsaV3Util {
       } else {
         // Cast value to any as HttpUtils.normalize is designed to handle various input types
         // Note: normalize itself calls toString() if value is not null/undefined
-        normalizedValue = HttpUtils.normalize((value as any)?.toString()); // Remove trim()normalizedValue = HttpUtils.normalize((value as any)?.toString().trim()); // Added optional chaining for safety before trim
+        normalizedValue = HttpUtils.normalize((value as any)?.toString());
       }
 
       paramStrings.push(normalizedKey + '=' + normalizedValue);
