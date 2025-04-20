@@ -18,7 +18,7 @@ describe('YopClient Integration Test for /rest/v1.0/aggpay/pre-pay', () => {
 
   beforeAll(() => {
     // Ensure required environment variables are set
-    const requiredEnvVars = ['YOP_APP_KEY', 'YOP_SECRET_KEY', 'YOP_PARENT_MERCHANT_NO', 'YOP_MERCHANT_NO', 'YOP_NOTIFY_URL'];
+    const requiredEnvVars = ['YOP_APP_KEY', 'YOP_APP_PRIVATE_KEY', 'YOP_PARENT_MERCHANT_NO', 'YOP_MERCHANT_NO', 'YOP_NOTIFY_URL'];
     for (const envVar of requiredEnvVars) {
       if (!process.env[envVar]) {
         throw new Error(`Missing required environment variable ${envVar} in .env file for integration test.`);
@@ -28,7 +28,7 @@ describe('YopClient Integration Test for /rest/v1.0/aggpay/pre-pay', () => {
     // Read public key file
     const __filename = fileURLToPath(import.meta.url);
     const currentDir = dirname(__filename);
-    const publicKeyPath = path.resolve(currentDir, '..', process.env.YOP_PUBLIC_KEY_PATH || 'src/assets/yop_platform_rsa_cert_rsa.cer'); // Use currentDir instead of __dirname
+    const publicKeyPath = path.resolve(currentDir, '..', process.env.YOP_PUBLIC_KEY_PATH || 'src/assets/yop_platform_rsa_cert_rsa.pem'); // Use currentDir instead of __dirname
     let yopPublicKey: string;
     try {
       yopPublicKey = fs.readFileSync(publicKeyPath, 'utf-8');
@@ -40,7 +40,7 @@ describe('YopClient Integration Test for /rest/v1.0/aggpay/pre-pay', () => {
     // Create real config object
     const realConfig: YopConfig = {
       appKey: process.env.YOP_APP_KEY!,
-      secretKey: process.env.YOP_SECRET_KEY!, // Secret key is needed for YopClient now
+      secretKey: process.env.YOP_APP_PRIVATE_KEY!, // Secret key is needed for YopClient now
       yopApiBaseUrl: process.env.YOP_API_BASE_URL || 'https://openapi.yeepay.com',
       yopPublicKey: yopPublicKey,
       // merchantNo: process.env.YOP_MERCHANT_NO!, // Removed: merchantNo is a request parameter, not client config

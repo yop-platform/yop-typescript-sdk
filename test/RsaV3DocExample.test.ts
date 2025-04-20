@@ -48,10 +48,9 @@ rCcNrf36RzK+PLLPq/uPAaY=
 ${DOC_METHOD}
 ${DOC_URL}
 
-content-type:${HttpUtils.normalize(DOC_CONFIG.contentType)}
-x-yop-appkey:${HttpUtils.normalize(DOC_APP_KEY)}
-x-yop-content-sha256:${HttpUtils.normalize('d9c89c72b774c89e2d15c19fc3326e7c9508d605a7974ab0a636d9121c97e7ff')}
-x-yop-request-id:${HttpUtils.normalize(DOC_REQUEST_ID)}`;
+x-yop-appkey:${DOC_APP_KEY}
+x-yop-content-sha256:d9c89c72b774c89e2d15c19fc3326e7c9508d605a7974ab0a636d9121c97e7ff
+x-yop-request-id:${DOC_REQUEST_ID}`;
 
   // Helper to extract parts of the Authorization header
   const parseAuthHeader = (authHeader: string | undefined) => {
@@ -110,7 +109,7 @@ x-yop-request-id:${HttpUtils.normalize(DOC_REQUEST_ID)}`;
       
       // 注意：由于我们修改了时间戳，签名可能不匹配文档中的示例
       // 这里我们只验证签名格式，而不是具体值
-      expect(authParts?.signedHeaders).toBe('content-type;x-yop-appkey;x-yop-content-sha256;x-yop-request-id');
+      expect(authParts?.signedHeaders).toBe('x-yop-appkey;x-yop-content-sha256;x-yop-request-id');
       expect(authParts?.signature).toMatch(/^[A-Za-z0-9_-]+[$]SHA256$/);
 
       // 2. 验证其他头部
@@ -131,5 +130,23 @@ x-yop-request-id:${HttpUtils.normalize(DOC_REQUEST_ID)}`;
       RsaV3Util.uuid = originalUuid;
       RsaV3Util.getAuthHeaders = originalGetAuthHeaders;
     }
+  });
+
+  it('should directly sign the canonical request using the sign method', () => {
+    // 直接使用 sign 方法对文档示例的规范请求进行签名
+    const signature = RsaV3Util.sign(DOC_EXPECTED_CANONICAL_REQUEST, DOC_SECRET_KEY);
+
+    // 验证签名格式
+    expect(signature).toMatch(/^[A-Za-z0-9_-]+[$]SHA256$/);
+    
+    // 验证签名不包含 URL 不安全字符
+    expect(signature).not.toMatch(/[+/=]/);
+    
+    // 验证签名以 $SHA256 结尾
+    expect(signature.endsWith('$SHA256')).toBe(true);
+
+    // 记录测试结果
+    console.log('直接使用 sign 方法生成的签名：', signature);
+    console.log('预期的签名：', DOC_EXPECTED_SIGNATURE);
   });
 });

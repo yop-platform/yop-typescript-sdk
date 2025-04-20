@@ -47,12 +47,8 @@ export class RsaV3Util {
   static getAuthHeaders(options: AuthHeaderOptions): Record<string, string> {
     const { appKey, method, url, params = {}, secretKey, config = { contentType: ''} } = options;
 
-    if (config.contentType === 'application/json') {
-      for (const key in params) {
-        // Cast params[key] to any as HttpUtils.normalize is designed to handle various input types
-        params[key] = HttpUtils.normalize(params[key] as any);
-      }
-    }
+    // 修复：移除对 application/json 类型参数的额外处理
+    // JSON 字符串应该保持原样，不应该对每个字段进行 normalize 处理
 
     const timestamp = formatDate(new Date(), "yyyy-MM-ddThh:mm:ssZ");
     const authString = 'yop-auth-v3/' + appKey + "/" + timestamp + "/1800";
@@ -89,23 +85,8 @@ export class RsaV3Util {
     };
 
 
-    // Check if secretKey is already in PEM format
-    const private_key = secretKey.includes('-----BEGIN PRIVATE KEY-----')
-      ? secretKey
-      : this.formatPrivateKey(secretKey);
-    const sign = crypto.createSign('RSA-SHA256');
-    sign.update(CanonicalRequest, 'utf8');
-    let sig = sign.sign(private_key, 'base64');
-
-    // URL safe processing
-    sig = sig.replace(/[+]/g, '-');
-    sig = sig.replace(/[/]/g, '_');
-
-    // Remove extra '=' padding
-    sig = sig.replace(/=+$/, ''); // More efficient regex to remove trailing '='
-
-    let signToBase64 = sig;
-    signToBase64 += '$SHA256';
+    // 使用提取的sign方法生成签名
+    const signToBase64 = this.sign(CanonicalRequest, secretKey);
 
     // Construct auth header using the correctly generated signedHeadersString
     allHeaders.Authorization = "YOP-RSA2048-SHA256 " + authString + "/" +
@@ -121,6 +102,7 @@ export class RsaV3Util {
     // Normalize, sort, and format all provided headers according to YOP spec
     Object.keys(headersToSign)
       .map(key => key.toLowerCase()) // Convert keys to lowercase for sorting and processing
+      .filter(key => key.startsWith('x-yop-')) // 只包含 x-yop- 开头的头部
       .sort() // Sort keys alphabetically
       .forEach(lowerCaseKey => {
         // Find the original key to get the original value
@@ -207,14 +189,16 @@ export class RsaV3Util {
       }
 
       const normalizedKey = HttpUtils.normalize(key.trim());
-      let normalizedValue: string;
-
-      if (type === 'form-urlencoded') {
-        // Cast value to any as HttpUtils.normalize is designed to handle various input types
-        normalizedValue = HttpUtils.normalize(HttpUtils.normalize(value as any));
+      let normalizedValue;
+      
+      // 对于 form-urlencoded 类型，需要对值进行双重编码
+      if (type === 'application/x-www-form-urlencoded') {
+        // 先对值进行一次编码
+        const firstNormalized = HttpUtils.normalize((value as any)?.toString());
+        // 然后对编码后的值再进行一次编码
+        normalizedValue = firstNormalized.replace(/%/g, '%25');
       } else {
-        // Cast value to any as HttpUtils.normalize is designed to handle various input types
-        // Note: normalize itself calls toString() if value is not null/undefined
+        // 对于其他类型，只进行一次编码
         normalizedValue = HttpUtils.normalize((value as any)?.toString());
       }
 
@@ -240,6 +224,38 @@ export class RsaV3Util {
    * @param method - HTTP method
    * @returns SHA256 hash as hex string
    */
+  /**
+   * 对对象的键进行排序，以确保生成一致的 JSON 字符串
+   * @param obj - 要排序的对象
+   * @returns 排序后的对象
+   */
+  private static sortObjectKeys(obj: Record<string, unknown>): Record<string, unknown> {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
+      return obj as Record<string, unknown>;
+    }
+    
+    const sortedObj: Record<string, unknown> = {};
+    const keys = Object.keys(obj).sort();
+    
+    for (const key of keys) {
+      if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+        // 递归排序嵌套对象
+        sortedObj[key] = this.sortObjectKeys(obj[key] as Record<string, unknown>);
+      } else {
+        sortedObj[key] = obj[key];
+      }
+    }
+    
+    return sortedObj;
+  }
+
+  /**
+   * Calculates SHA256 hash and returns hex string
+   * @param params - Request parameters
+   * @param config - Configuration options
+   * @param method - HTTP method
+   * @returns SHA256 hash as hex string
+   */
   static getSha256AndHexStr(
     params: Record<string, unknown>,
     config: { contentType: string },
@@ -248,7 +264,9 @@ export class RsaV3Util {
     let str = '';
 
     if (config.contentType.includes('application/json') && method.toLowerCase() === 'post') {
-      str = JSON.stringify(params);
+      // 对 JSON 对象的键进行排序，以确保生成一致的 JSON 字符串
+      const sortedParams = this.sortObjectKeys(params);
+      str = JSON.stringify(sortedParams);
     } else {
       if (Object.keys(params).length !== 0) {
         str = this.getCanonicalParams(params);
@@ -260,6 +278,33 @@ export class RsaV3Util {
     const sig = sign.digest('hex');
 
     return sig;
+  }
+
+  /**
+   * Signs a canonical request string using RSA-SHA256
+   * @param canonicalRequest - The canonical request string to sign
+   * @param secretKey - The private key to sign with (PEM format or raw)
+   * @returns Base64 URL-safe signature with $SHA256 suffix
+   */
+  static sign(canonicalRequest: string, secretKey: string): string {
+    // Check if secretKey is already in PEM format
+    const private_key = secretKey.includes('-----BEGIN PRIVATE KEY-----')
+      ? secretKey
+      : this.formatPrivateKey(secretKey);
+    
+    const signer = crypto.createSign('RSA-SHA256');
+    signer.update(canonicalRequest, 'utf8');
+    let sig = signer.sign(private_key, 'base64');
+
+    // URL safe processing
+    sig = sig.replace(/[+]/g, '-');
+    sig = sig.replace(/[/]/g, '_');
+
+    // Remove extra '=' padding
+    sig = sig.replace(/=+$/, ''); // More efficient regex to remove trailing '='
+
+    // Add algorithm suffix
+    return sig + '$SHA256';
   }
 
   /**

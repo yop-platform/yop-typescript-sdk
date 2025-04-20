@@ -4,7 +4,7 @@ import URLSafeBase64 from 'urlsafe-base64';
 interface VerifyParams {
   data: string;
   sign: string;
-  publicKey: string;
+  publicKey: string | Buffer;
 }
 
 interface DigitalEnvelopeResult {
@@ -15,53 +15,111 @@ interface DigitalEnvelopeResult {
 
 export class VerifyUtils {
   /**
+   * Extracts public key from X.509 certificate or formats raw key to PEM format
+   * @param certOrKey - Certificate content, PEM public key, or raw public key
+   * @returns Extracted or formatted public key in PEM format
+   */
+  static extractPublicKeyFromCertificate(certOrKey: string | Buffer): string {
+    try {
+      // 如果输入是Buffer，转换为字符串
+      const certOrKeyStr = Buffer.isBuffer(certOrKey) ? certOrKey.toString('utf-8') : certOrKey;
+      
+      // 如果已经是PEM格式的公钥，直接返回
+      if (certOrKeyStr.includes('-----BEGIN PUBLIC KEY-----') && certOrKeyStr.includes('-----END PUBLIC KEY-----')) {
+        return certOrKeyStr;
+      }
+      
+      // 如果是X.509证书，尝试提取公钥
+      if (certOrKeyStr.includes('-----BEGIN CERTIFICATE-----') && certOrKeyStr.includes('-----END CERTIFICATE-----')) {
+        try {
+          // 使用Node.js的crypto模块从证书中提取公钥
+          const cert = crypto.createPublicKey({
+            key: certOrKeyStr,
+            format: 'pem',
+          });
+          return cert.export({ format: 'pem', type: 'spki' }).toString();
+        } catch (error) {
+          console.warn(`Failed to extract public key from certificate: ${error instanceof Error ? error.message : String(error)}`);
+          // 如果提取失败，返回原始证书内容
+          return certOrKeyStr;
+        }
+      }
+      
+      // 如果是原始公钥字符串，格式化为PEM格式
+      // 移除所有空白字符
+      const cleanKey = certOrKeyStr.replace(/\s+/g, '');
+      
+      // 分块添加换行符（每64个字符一行）
+      let formattedKey = '';
+      for (let i = 0; i < cleanKey.length; i += 64) {
+        formattedKey += cleanKey.substring(i, i + 64) + '\n';
+      }
+      
+      // 添加PEM头尾
+      return `-----BEGIN PUBLIC KEY-----\n${formattedKey}-----END PUBLIC KEY-----`;
+    } catch (error) {
+      console.warn(`Error in extractPublicKeyFromCertificate: ${error instanceof Error ? error.message : String(error)}`);
+      // 如果处理失败，返回原始输入
+      return Buffer.isBuffer(certOrKey) ? certOrKey.toString('utf-8') : certOrKey;
+    }
+  }
+  /**
    * Validates RSA signature for business results
    * @param params - Parameters containing data, sign, and publicKey
    * @returns Whether the signature is valid
    */
   static isValidRsaResult(params: VerifyParams): boolean {
-    const result = this.getResult(params.data);
-    let sign = params.sign.replace('$SHA256', '');
-    let public_key = params.publicKey;
-    let sb = "";
+    try {
+      const result = this.getResult(params.data);
+      let sign = params.sign.replace('$SHA256', '');
+      let sb = "";
 
-    if (!result) {
-      sb = "";
-    } else {
-      sb += result.trim();
-    }
-
-    sb = sb.replace(/[\s]{2,}/g, "");
-    sb = sb.replace(/\n/g, "");
-    sb = sb.replace(/[\s]/g, "");
-
-    let r = public_key + "";
-    let a = "-----BEGIN PUBLIC KEY-----";
-    let b = "-----END PUBLIC KEY-----";
-    public_key = "";
-    let len = r.length;
-    let start = 0;
-
-    while (start <= len) {
-      if (public_key.length) {
-        public_key += r.substr(start, 64) + '\n';
+      if (!result) {
+        sb = "";
       } else {
-        public_key = r.substr(start, 64) + '\n';
+        sb += result.trim();
       }
-      start += 64;
+
+      sb = sb.replace(/[\s]{2,}/g, "");
+      sb = sb.replace(/\n/g, "");
+      sb = sb.replace(/[\s]/g, "");
+
+      // 使用 extractPublicKeyFromCertificate 确保公钥格式正确
+      let public_key;
+      try {
+        public_key = this.extractPublicKeyFromCertificate(params.publicKey);
+      } catch (error) {
+        console.warn(`Failed to process public key: ${error instanceof Error ? error.message : String(error)}`);
+        return false;
+      }
+
+      // 创建公钥对象
+      let publicKeyObject;
+      try {
+        publicKeyObject = crypto.createPublicKey({
+          key: public_key,
+          format: 'pem'
+        });
+      } catch (error) {
+        console.warn(`Failed to create public key object: ${error instanceof Error ? error.message : String(error)}`);
+        return false;
+      }
+
+      let verify = crypto.createVerify('RSA-SHA256');
+      verify.update(sb);
+      sign = sign + "";
+      // sign = sign.substr(0,-7);
+      sign = sign.replace(/[-]/g, '+');
+      sign = sign.replace(/[_]/g, '/');
+      
+      // 使用公钥对象进行验证
+      let res = verify.verify(publicKeyObject, sign, 'base64');
+
+      return res;
+    } catch (error) {
+      console.warn(`Error in isValidRsaResult: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
     }
-
-    public_key = a + '\n' + public_key + b;
-
-    let verify = crypto.createVerify('RSA-SHA256');
-    verify.update(sb);
-    sign = sign + "";
-    // sign = sign.substr(0,-7);
-    sign = sign.replace(/[-]/g, '+');
-    sign = sign.replace(/[_]/g, '/');
-    let res = verify.verify(public_key, sign, 'base64');
-
-    return res;
   }
 
   /**
@@ -135,41 +193,51 @@ export class VerifyUtils {
    * @returns Whether the signature is valid
    */
   static isValidNotifyResult(result: string, sign: string, public_key: string): boolean {
-    let sb = "";
+    try {
+      let sb = "";
 
-    if (!result) {
-      sb = "";
-    } else {
-      sb += result;
-    }
-
-    let r = public_key + "";
-    let a = "-----BEGIN PUBLIC KEY-----";
-    let b = "-----END PUBLIC KEY-----";
-    public_key = "";
-    let len = r.length;
-    let start = 0;
-
-    while (start <= len) {
-      if (public_key.length) {
-        public_key += r.substr(start, 64) + '\n';
+      if (!result) {
+        sb = "";
       } else {
-        public_key = r.substr(start, 64) + '\n';
+        sb += result;
       }
-      start += 64;
+
+      // 使用 extractPublicKeyFromCertificate 确保公钥格式正确
+      let formattedPublicKey;
+      try {
+        formattedPublicKey = this.extractPublicKeyFromCertificate(public_key);
+      } catch (error) {
+        console.warn(`Failed to process public key in isValidNotifyResult: ${error instanceof Error ? error.message : String(error)}`);
+        return false;
+      }
+
+      // 创建公钥对象
+      let publicKeyObject;
+      try {
+        publicKeyObject = crypto.createPublicKey({
+          key: formattedPublicKey,
+          format: 'pem'
+        });
+      } catch (error) {
+        console.warn(`Failed to create public key object in isValidNotifyResult: ${error instanceof Error ? error.message : String(error)}`);
+        return false;
+      }
+
+      let verify = crypto.createVerify('RSA-SHA256');
+      verify.update(sb);
+      sign = sign + "";
+      // sign = sign.substr(0,-7);
+      sign = sign.replace(/[-]/g, '+');
+      sign = sign.replace(/[_]/g, '/');
+      
+      // 使用公钥对象进行验证
+      let res = verify.verify(publicKeyObject, sign, 'base64');
+
+      return res;
+    } catch (error) {
+      console.warn(`Error in isValidNotifyResult: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
     }
-
-    public_key = a + '\n' + public_key + b;
-
-    let verify = crypto.createVerify('RSA-SHA256');
-    verify.update(sb);
-    sign = sign + "";
-    // sign = sign.substr(0,-7);
-    sign = sign.replace(/[-]/g, '+');
-    sign = sign.replace(/[_]/g, '/');
-    let res = verify.verify(public_key, sign, 'base64');
-
-    return res;
   }
 
   /**

@@ -12,33 +12,52 @@ export class HttpUtils {
    * @returns Normalized string
    */
   static normalize(value: string | number | boolean | undefined | null): string {
+    // 处理 undefined 和 null
+    if (value === undefined || value === null) {
+      return "";
+    }
+    
+    // 将值转换为字符串
+    const strValue = value.toString();
+    
+    // 如果是空字符串，直接返回
+    if (strValue === "") {
+      return "";
+    }
+    
+    // 特殊处理：检查是否是百分号编码的波浪号 %7E，应该转换为 ~
+    if (strValue === '%7E') {
+      return '~';
+    }
+    
     let vStr = "";
-    if (value) {
-      const bytes = Buffer.from(value.toString(), 'utf-8');
-      for (let i = 0; i < bytes.length; i++) {
-        const byte = bytes[i];
-        const s = String.fromCharCode(byte!); // Assert non-null: loop guarantees it's defined
-        if (s.match(/[0-9a-zA-Z._~-]/)) {
-          // RFC 3986 unreserved characters
-          vStr += s;
-        } else {
-          // Handle special cases according to RFC 3986
-          if (s === '+') {
-            vStr += '%20'; // Convert + to %20
-          } else if (s === '*') {
-            vStr += '%2A'; // Convert * to %2A
-          } else if (s === '%' && i + 2 < bytes.length) {
-            // Check if this is %7E which should be converted to ~
-            const nextTwoChars = String.fromCharCode(bytes[i+1]!) + String.fromCharCode(bytes[i+2]!);
-            if (nextTwoChars.toUpperCase() === '7E') {
-              vStr += '~';
-              i += 2; // Skip the next two bytes
-            } else {
-              vStr += '%' + byte!.toString(16).toUpperCase();
-            }
+    const bytes = Buffer.from(strValue, 'utf-8');
+    for (let i = 0; i < bytes.length; i++) {
+      const byte = bytes[i];
+      const s = String.fromCharCode(byte!); // Assert non-null: loop guarantees it's defined
+      if (s.match(/[0-9a-zA-Z._~-]/)) {
+        // RFC 3986 unreserved characters
+        vStr += s;
+      } else {
+        // Handle special cases according to RFC 3986
+        if (s === '+') {
+          vStr += '%2B'; // 修复：将 + 编码为 %2B 而不是 %20
+        } else if (s === '*') {
+          vStr += '%2A'; // Convert * to %2A
+        } else if (s === '%') {
+          // 检查是否是 %7E 序列（编码的波浪号）
+          if (i + 2 < bytes.length &&
+              String.fromCharCode(bytes[i+1]!) === '7' &&
+              String.fromCharCode(bytes[i+2]!) === 'E') {
+            vStr += '~'; // 将 %7E 转换为 ~
+            i += 2; // 跳过后面两个字符
           } else {
-            vStr += '%' + byte!.toString(16).toUpperCase();
+            vStr += '%25'; // 其他情况下，将 % 编码为 %25
           }
+        } else {
+          // 确保十六进制值始终是两位数
+          const hex = byte!.toString(16).toUpperCase().padStart(2, '0');
+          vStr += '%' + hex;
         }
       }
     }

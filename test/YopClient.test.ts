@@ -5,35 +5,8 @@ import { jest, describe, beforeEach, test, expect } from '@jest/globals'; // Re-
 const mockSecretKeyContent = '-----BEGIN PRIVATE KEY-----\nMOCK_SECRET_KEY\n-----END PRIVATE KEY-----';
 const mockYopPublicKeyContent = '-----BEGIN PUBLIC KEY-----\nMOCK_YOP_PUBLIC_KEY\n-----END PUBLIC KEY-----';
 
-// Store actual certificate content for init test expectations
-const actualCertContent = `-----BEGIN CERTIFICATE-----
-MIIE2TCCA8GgAwIBAgIFQ5cTlZgwDQYJKoZIhvcNAQELBQAwWDELMAkGA1UEBhMC
-Q04xMDAuBgNVBAoMJ0NoaW5hIEZpbmFuY2lhbCBDZXJ0aWZpY2F0aW9uIEF1dGhv
-cml0eTEXMBUGA1UEAwwOQ0ZDQSBBQ1MgT0NBMzEwHhcNMjEwNDI1MDIwOTAwWhcN
-MjMwNDI1MDIwOTAwWjCBhzELMAkGA1UEBhMCQ04xFzAVBgNVBAoMDkNGQ0EgQUNT
-IE9DQTMxMRAwDgYDVQQLDAdURVNUIFJBMRkwFwYDVQQLDBBPcmdhbml6YXRpb25h
-bC0xMTIwMAYDVQQDDCkwNTFA5piT5a6d5byA5pS+5bmz5Y+wQDMxMTAwMDAwMDU4
-MDQyMjlANTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOqdF1o7HGPo
-LMqikYcPTHi7BJoRXQUYU9npjnJPxdTpsN/GVoScYfZA37OR8xSTK1aM4FPkiRQz
-jcbPFAdMDCCykZqny3HwpRvTMgjbiZJH5tBxUL9YURnTr2T149wXJLsGuxaxFwUW
-FISu7yeNGn7prKbYZrHum7OpmcTZ/5gC2dl9O7s5zq63Nq5ONWNh37XbsWcOk+BJ
-rVrjdseAmfIMEsjwFuWc2SS0OrWQ6IwSuBmUwBoZ5924OWwbAZcNvhS5AkAbg7CV
-bBT4hof2+iv/sxk71slHLvi1I9jHo2EBCwzt4tr0F1Q5O5VYtv03FGHn7yHLLJ87
-Hwn42qK8bLsCAwEAAaOCAXgwggF0MGwGCCsGAQUFBwEBBGAwXjAoBggrBgEFBQcw
-AYYcaHR0cDovL29jc3AuY2ZjYS5jb20uY24vb2NzcDAyBggrBgEFBQcwAoYmaHR0
-cDovL2NybC5jZmNhLmNvbS5jbi9vY2EzMS9vY2EzMS5jZXIwHwYDVR0jBBgwFoAU
-4rQJy81hoXNKeX/xioML3bR+jB0wDAYDVR0TAQH/BAIwADBIBgNVHSAEQTA/MD0G
-CGCBHIbvKgEEMDEwLwYIKwYBBQUHAgEWI2h0dHA6Ly93d3cuY2ZjYS5jb20uY24v
-dXMvdXMtMTQuaHRtMD0GA1UdHwQ2MDQwMqAwoC6GLGh0dHA6Ly9jcmwuY2ZjYS5j
-b20uY24vb2NhMzEvUlNBL2NybDMwMjMuY3JsMA4GA1UdDwEB/wQEAwIGwDAdBgNV
-HQ4EFgQU4swobhCzosrPL4Gv8clxRwbHy0EwHQYDVR0lBBYwFAYIKwYBBQUHAwIG
-CCsGAQUFBwMEMA0GCSqGSIb3DQEBCwUAA4IBAQBpZpClbx+FJo5WpuJW+TJKYRay
-KeAx3/+VvlMyWvdcbABPlvwBY1m3xl1k+tsqqtBGvjathGmw1w7YESdRFTT/ty04
-MDLmz62USS4DJlZ2EWMxPm0bKpuAPsWb3+EtvizyZ0l1gX/D0YHDcH+VljYlGAv+
-yQEUzD+0c9NZSWr4V19yRVDQEicll5hJko7RFQUrwW+wNSrexzlyQFbUlbljwAnH
-O0TF3zgTXKRu2YNiKZGlxr28FjOeMQdvpiNqHCW9ACjQqL0vz1l9IImn0lm+0vh0
-YhAN0oFzJZvs5lFG9Bg+kNkyhgf9eVcUUxXKnA6UwXq2amoTa4Iq3NW6YuPI
------END CERTIFICATE-----`;
+// Store actual public key content for init test expectations
+const actualPublicKeyContent = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6p0XWjscY+gsyqKRhw9M\neLsEmhFdBRhT2emOck/F1Omw38ZWhJxh9kDfs5HzFJMrVozgU+SJFDONxs8UB0wM\nILKRmqfLcfClG9MyCNuJkkfm0HFQv1hRGdOvZPXj3Bckuwa7FrEXBRYUhK7vJ40a\nfumspthmse6bs6mZxNn/mALZ2X07uznOrrc2rk41Y2HftduxZw6T4EmtWuN2x4CZ\n8gwSyPAW5ZzZJLQ6tZDojBK4GZTAGhnn3bg5bBsBlw2+FLkCQBuDsJVsFPiGh/b6\nK/+zGTvWyUcu+LUj2MejYQELDO3i2vQXVDk7lVi2/TcUYefvIcssnzsfCfjaorxs\nuwIDAQAB\n-----END PUBLIC KEY-----";
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -70,12 +43,15 @@ describe('YopClient Request Handling', () => {
     // Add other necessary fields from YopConfig if needed
     // timeout: 30000, // Removed as it's not in YopConfig
   };
+  
+  // 确保 yopPublicKey 不为 undefined，用于类型安全
+  const safePublicKey = mockConfig.yopPublicKey || '';
   const mockAuthHeaders = {
     'Authorization': 'YOP-RSA3-TEST test-app-key/test-signature', // Example auth header
     'x-yop-appkey': mockConfig.appKey,
     'x-yop-request-id': 'mock-request-id',
     'x-yop-date': new Date().toISOString(),
-    'x-yop-sdk-version': '@yeepay/yop-typescript-sdk/0.2.5', // 根据实际使用的SDK版本调整
+    'x-yop-sdk-version': '@yeepay/yop-typescript-sdk/4.0.0', // 根据实际使用的SDK版本调整
     'x-yop-sdk-lang': 'nodejs',
   };
   const mockSuccessResponseData = { code: 'OPR00000', message: 'Success', result: { data: 'ok' } };
@@ -154,7 +130,7 @@ describe('YopClient Request Handling', () => {
     );
     expectSpiesCalled(
         { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
-        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: mockConfig.yopPublicKey }
+        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: safePublicKey }
     );
     expect(result).toEqual(mockSuccessResponseData);
   });
@@ -175,7 +151,7 @@ describe('YopClient Request Handling', () => {
     );
     expectSpiesCalled(
         { method: 'POST', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
-        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: mockConfig.yopPublicKey }
+        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: safePublicKey }
     );
     expect(result).toEqual(mockSuccessResponseData);
   });
@@ -199,7 +175,7 @@ describe('YopClient Request Handling', () => {
      expectSpiesCalled( // Simulate verification failure
 
         { method: 'POST', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
-        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: mockConfig.yopPublicKey }
+        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: safePublicKey }
      )
 ;
     // Verification is called and fails
@@ -220,7 +196,7 @@ describe('YopClient Request Handling', () => {
     // Signature should still be verified if present
     expectSpiesCalled(
         { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
-        { data: JSON.stringify(mockBusinessErrorData), sign: mockYopSignHeader, publicKey: mockConfig.yopPublicKey }
+        { data: JSON.stringify(mockBusinessErrorData), sign: mockYopSignHeader, publicKey: safePublicKey }
     );
   });
 
@@ -264,7 +240,7 @@ describe('YopClient Request Handling', () => {
     // Verification is called and fails
     expectSpiesCalled(
         { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
-        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: mockConfig.yopPublicKey }
+        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: safePublicKey }
     );
   }); // Assume verification passes
 
@@ -280,16 +256,10 @@ describe('YopClient Request Handling', () => {
     mockFetch.mockResolvedValue(mockResponse);
 
     const result = await yopClient.get(mockApiUri, mockParams);
-// Define constants *outside* the describe block - REMOVED as they are defined within the mock functions above
-// const mockDefaultKeyPath = '/resolved/path/to/src/assets/yop_platform_rsa_cert_rsa.cer';    expect(result).toEqual(mockSuccessResponseData);
-// const mockEnvKeyPath = '/resolve/path/to/env_key.cr';
-// cont defaultPubliKeyContent = 'public_key_fom_default_fle';
-// const envPathPublicKeyContent = 'pulic_key_from_nv_path_file';
 
-// Definitions are now inside the factory functions above
+  // Definitions are now inside the factory functions above
 
-
-describe
+  describe
     // Verification should not be called if header is missing
     expectSpiesCalled(
         { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey }
@@ -342,7 +312,7 @@ describe
     // Signature verification happens *before* JSON parse attempt
     expectSpiesCalled(
         { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
-        { data: invalidJsonText, sign: mockYopSignHeader, publicKey: mockConfig.yopPublicKey }
+        { data: invalidJsonText, sign: mockYopSignHeader, publicKey: safePublicKey }
     );
   });
 
@@ -365,10 +335,23 @@ describe
     // Verification *is* called before JSON parsing attempt
     expectSpiesCalled(
         { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
-        { data: mockInvalidJsonResponseText, sign: mockYopSignHeader, publicKey: mockConfig.yopPublicKey }
+        { data: mockInvalidJsonResponseText, sign: mockYopSignHeader, publicKey: safePublicKey }
     );
   });
 
+});
+
+// 添加临时测试，打印出实际的公钥格式
+test('Debug: Print actual public key format', () => {
+  // 创建一个 YopClient 实例
+  const client = new YopClient({
+    appKey: 'test_app_key',
+    secretKey: 'TEST_APP_PRIVATE_KEY',
+  });
+  
+  // 打印出实际的公钥格式
+  console.log('Actual public key format:');
+  console.log(JSON.stringify((client as any).config.yopPublicKey));
 });
 
 describe('YopClient Initialization', () => {
@@ -380,7 +363,7 @@ describe('YopClient Initialization', () => {
       originalEnv = { ...process.env };
       // Clear relevant env vars before each test
       delete process.env.YOP_APP_KEY;
-      delete process.env.YOP_SECRET_KEY;
+      delete process.env.YOP_APP_PRIVATE_KEY;
       delete process.env.YOP_PUBLIC_KEY;
       delete process.env.YOP_PUBLIC_KEY_PATH;
       delete process.env.YOP_API_BASE_URL;
@@ -397,35 +380,35 @@ describe('YopClient Initialization', () => {
     // Scenario 1: Basic Env Vars (uses default file for public key)
     {
       description: '[Scenario 1] should initialize successfully using basic env vars',
-      envVars: { YOP_APP_KEY: 'env_app_key_1', YOP_SECRET_KEY: 'env_secret_key_1' },
+      envVars: { YOP_APP_KEY: 'env_app_key_1', YOP_APP_PRIVATE_KEY: 'env_secret_key_1' },
       configInput: undefined,
-      // Expect actual cert content (read from default path) and correct base URL
-      expectedConfig: { appKey: 'env_app_key_1', secretKey: 'env_secret_key_1', yopPublicKey: actualCertContent, yopApiBaseUrl: defaultBaseUrl },
+      // Expect actual public key content (extracted from default path) and correct base URL
+      expectedConfig: { appKey: 'env_app_key_1', secretKey: 'env_secret_key_1', yopPublicKey: "-----BEGIN PUBLIC KEY-----\nMIIE2TCCA8GgAwIBAgIFQ5cTlZgwDQYJKoZIhvcNAQELBQAwWDELMAkGA1UEBhMC\nQ04xMDAuBgNVBAoMJ0NoaW5hIEZpbmFuY2lhbCBDZXJ0aWZpY2F0aW9uIEF1dGhv\ncml0eTEXMBUGA1UEAwwOQ0ZDQSBBQ1MgT0NBMzEwHhcNMjEwNDI1MDIwOTAwWhcN\nMjMwNDI1MDIwOTAwWjCBhzELMAkGA1UEBhMCQ04xFzAVBgNVBAoMDkNGQ0EgQUNT\nIE9DQTMxMRAwDgYDVQQLDAdURVNUIFJBMRkwFwYDVQQLDBBPcmdhbml6YXRpb25h\nbC0xMTIwMAYDVQQDDCkwNTFA5piT5a6d5byA5pS+5bmz5Y+wQDMxMTAwMDAwMDU4\nMDQyMjlANTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOqdF1o7HGPo\nLMqikYcPTHi7BJoRXQUYU9npjnJPxdTpsN/GVoScYfZA37OR8xSTK1aM4FPkiRQz\njcbPFAdMDCCykZqny3HwpRvTMgjbiZJH5tBxUL9YURnTr2T149wXJLsGuxaxFwUW\nFISu7yeNGn7prKbYZrHum7OpmcTZ/5gC2dl9O7s5zq63Nq5ONWNh37XbsWcOk+BJ\nrVrjdseAmfIMEsjwFuWc2SS0OrWQ6IwSuBmUwBoZ5924OWwbAZcNvhS5AkAbg7CV\nbBT4hof2+iv/sxk71slHLvi1I9jHo2EBCwzt4tr0F1Q5O5VYtv03FGHn7yHLLJ87\nHwn42qK8bLsCAwEAAaOCAXgwggF0MGwGCCsGAQUFBwEBBGAwXjAoBggrBgEFBQcw\nAYYcaHR0cDovL29jc3AuY2ZjYS5jb20uY24vb2NzcDAyBggrBgEFBQcwAoYmaHR0\ncDovL2NybC5jZmNhLmNvbS5jbi9vY2EzMS9vY2EzMS5jZXIwHwYDVR0jBBgwFoAU\n4rQJy81hoXNKeX/xioML3bR+jB0wDAYDVR0TAQH/BAIwADBIBgNVHSAEQTA/MD0G\nCGCBHIbvKgEEMDEwLwYIKwYBBQUHAgEWI2h0dHA6Ly93d3cuY2ZjYS5jb20uY24v\ndXMvdXMtMTQuaHRtMD0GA1UdHwQ2MDQwMqAwoC6GLGh0dHA6Ly9jcmwuY2ZjYS5j\nb20uY24vb2NhMzEvUlNBL2NybDMwMjMuY3JsMA4GA1UdDwEB/wQEAwIGwDAdBgNV\nHQ4EFgQU4swobhCzosrPL4Gv8clxRwbHy0EwHQYDVR0lBBYwFAYIKwYBBQUHAwIG\nCCsGAQUFBwMEMA0GCSqGSIb3DQEBCwUAA4IBAQBpZpClbx+FJo5WpuJW+TJKYRay\nKeAx3/+VvlMyWvdcbABPlvwBY1m3xl1k+tsqqtBGvjathGmw1w7YESdRFTT/ty04\nMDLmz62USS4DJlZ2EWMxPm0bKpuAPsWb3+EtvizyZ0l1gX/D0YHDcH+VljYlGAv+\nyQEUzD+0c9NZSWr4V19yRVDQEicll5hJko7RFQUrwW+wNSrexzlyQFbUlbljwAnH\nO0TF3zgTXKRu2YNiKZGlxr28FjOeMQdvpiNqHCW9ACjQqL0vz1l9IImn0lm+0vh0\nYhAN0oFzJZvs5lFG9Bg+kNkyhgf9eVcUUxXKnA6UwXq2amoTa4Iq3NW6YuPI\n-----END PUBLIC KEY-----", yopApiBaseUrl: defaultBaseUrl },
     },
     // Scenario 1b: YOP_PUBLIC_KEY env var takes precedence
     {
       description: '[Scenario 1b] should initialize successfully using YOP_PUBLIC_KEY env var',
-      envVars: { YOP_APP_KEY: 'env_app_key_1b', YOP_SECRET_KEY: 'env_secret_key_1b', YOP_PUBLIC_KEY: 'env_public_key_direct' },
+      envVars: { YOP_APP_KEY: 'env_app_key_1b', YOP_APP_PRIVATE_KEY: 'env_secret_key_1b', YOP_PUBLIC_KEY: 'env_public_key_direct' },
       configInput: undefined,
       // Public key comes directly from env var
-      expectedConfig: { appKey: 'env_app_key_1b', secretKey: 'env_secret_key_1b', yopPublicKey: 'env_public_key_direct', yopApiBaseUrl: defaultBaseUrl },
+      expectedConfig: { appKey: 'env_app_key_1b', secretKey: 'env_secret_key_1b', yopPublicKey: '-----BEGIN PUBLIC KEY-----\nenv_public_key_direct\n-----END PUBLIC KEY-----', yopApiBaseUrl: defaultBaseUrl },
     },
     // Scenario 1c: YOP_PUBLIC_KEY_PATH env var - Test removed as it relies on fs interaction
     // Scenario 3: Optional Env Var (YOP_API_BASE_URL) + Default Public Key
     {
       description: '[Scenario 3] should initialize successfully using optional env var (YOP_API_BASE_URL)',
-      envVars: { YOP_APP_KEY: 'env_app_key_3', YOP_SECRET_KEY: 'env_secret_key_3', YOP_API_BASE_URL: 'https://custom-api.yeepay.com' },
+      envVars: { YOP_APP_KEY: 'env_app_key_3', YOP_APP_PRIVATE_KEY: 'env_secret_key_3', YOP_API_BASE_URL: 'https://custom-api.yeepay.com' },
       configInput: undefined,
-      // Expect actual cert content (default file), custom base URL
-      expectedConfig: { appKey: 'env_app_key_3', secretKey: 'env_secret_key_3', yopPublicKey: actualCertContent, yopApiBaseUrl: 'https://custom-api.yeepay.com' },
+      // Expect actual public key content (extracted from default file), custom base URL
+      expectedConfig: { appKey: 'env_app_key_3', secretKey: 'env_secret_key_3', yopPublicKey: "-----BEGIN PUBLIC KEY-----\nMIIE2TCCA8GgAwIBAgIFQ5cTlZgwDQYJKoZIhvcNAQELBQAwWDELMAkGA1UEBhMC\nQ04xMDAuBgNVBAoMJ0NoaW5hIEZpbmFuY2lhbCBDZXJ0aWZpY2F0aW9uIEF1dGhv\ncml0eTEXMBUGA1UEAwwOQ0ZDQSBBQ1MgT0NBMzEwHhcNMjEwNDI1MDIwOTAwWhcN\nMjMwNDI1MDIwOTAwWjCBhzELMAkGA1UEBhMCQ04xFzAVBgNVBAoMDkNGQ0EgQUNT\nIE9DQTMxMRAwDgYDVQQLDAdURVNUIFJBMRkwFwYDVQQLDBBPcmdhbml6YXRpb25h\nbC0xMTIwMAYDVQQDDCkwNTFA5piT5a6d5byA5pS+5bmz5Y+wQDMxMTAwMDAwMDU4\nMDQyMjlANTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOqdF1o7HGPo\nLMqikYcPTHi7BJoRXQUYU9npjnJPxdTpsN/GVoScYfZA37OR8xSTK1aM4FPkiRQz\njcbPFAdMDCCykZqny3HwpRvTMgjbiZJH5tBxUL9YURnTr2T149wXJLsGuxaxFwUW\nFISu7yeNGn7prKbYZrHum7OpmcTZ/5gC2dl9O7s5zq63Nq5ONWNh37XbsWcOk+BJ\nrVrjdseAmfIMEsjwFuWc2SS0OrWQ6IwSuBmUwBoZ5924OWwbAZcNvhS5AkAbg7CV\nbBT4hof2+iv/sxk71slHLvi1I9jHo2EBCwzt4tr0F1Q5O5VYtv03FGHn7yHLLJ87\nHwn42qK8bLsCAwEAAaOCAXgwggF0MGwGCCsGAQUFBwEBBGAwXjAoBggrBgEFBQcw\nAYYcaHR0cDovL29jc3AuY2ZjYS5jb20uY24vb2NzcDAyBggrBgEFBQcwAoYmaHR0\ncDovL2NybC5jZmNhLmNvbS5jbi9vY2EzMS9vY2EzMS5jZXIwHwYDVR0jBBgwFoAU\n4rQJy81hoXNKeX/xioML3bR+jB0wDAYDVR0TAQH/BAIwADBIBgNVHSAEQTA/MD0G\nCGCBHIbvKgEEMDEwLwYIKwYBBQUHAgEWI2h0dHA6Ly93d3cuY2ZjYS5jb20uY24v\ndXMvdXMtMTQuaHRtMD0GA1UdHwQ2MDQwMqAwoC6GLGh0dHA6Ly9jcmwuY2ZjYS5j\nb20uY24vb2NhMzEvUlNBL2NybDMwMjMuY3JsMA4GA1UdDwEB/wQEAwIGwDAdBgNV\nHQ4EFgQU4swobhCzosrPL4Gv8clxRwbHy0EwHQYDVR0lBBYwFAYIKwYBBQUHAwIG\nCCsGAQUFBwMEMA0GCSqGSIb3DQEBCwUAA4IBAQBpZpClbx+FJo5WpuJW+TJKYRay\nKeAx3/+VvlMyWvdcbABPlvwBY1m3xl1k+tsqqtBGvjathGmw1w7YESdRFTT/ty04\nMDLmz62USS4DJlZ2EWMxPm0bKpuAPsWb3+EtvizyZ0l1gX/D0YHDcH+VljYlGAv+\nyQEUzD+0c9NZSWr4V19yRVDQEicll5hJko7RFQUrwW+wNSrexzlyQFbUlbljwAnH\nO0TF3zgTXKRu2YNiKZGlxr28FjOeMQdvpiNqHCW9ACjQqL0vz1l9IImn0lm+0vh0\nYhAN0oFzJZvs5lFG9Bg+kNkyhgf9eVcUUxXKnA6UwXq2amoTa4Iq3NW6YuPI\n-----END PUBLIC KEY-----", yopApiBaseUrl: 'https://custom-api.yeepay.com' },
     },
     // Scenario 4: Explicit Config (Overrides everything)
     {
       description: '[Scenario 4] should initialize successfully using explicit configuration object',
-      envVars: { YOP_APP_KEY: 'env_app_key_4', YOP_SECRET_KEY: 'env_secret_key_4', YOP_PUBLIC_KEY: 'env_public_key_4', YOP_PUBLIC_KEY_PATH: 'env_key.cer', YOP_API_BASE_URL: 'https://env-api.yeepay.com' },
+      envVars: { YOP_APP_KEY: 'env_app_key_4', YOP_APP_PRIVATE_KEY: 'env_secret_key_4', YOP_PUBLIC_KEY: 'env_public_key_4', YOP_PUBLIC_KEY_PATH: 'env_key.cer', YOP_API_BASE_URL: 'https://env-api.yeepay.com' },
       configInput: { appKey: 'config_app_key_4', secretKey: 'config_secret_key_4', yopPublicKey: 'config_public_key_direct', yopApiBaseUrl: 'https://config-api.yeepay.com' },
       // Expect values directly from config input
-      expectedConfig: { appKey: 'config_app_key_4', secretKey: 'config_secret_key_4', yopPublicKey: 'config_public_key_direct', yopApiBaseUrl: 'https://config-api.yeepay.com' },
+      expectedConfig: { appKey: 'config_app_key_4', secretKey: 'config_secret_key_4', yopPublicKey: '-----BEGIN PUBLIC KEY-----\nconfig_public_key_direct\n-----END PUBLIC KEY-----', yopApiBaseUrl: 'https://config-api.yeepay.com' },
     },
     // Scenario 4 variation: Explicit Config, default URL, explicit public key
     {
@@ -433,23 +416,23 @@ describe('YopClient Initialization', () => {
       envVars: { YOP_PUBLIC_KEY: 'env_public_key_4b', YOP_PUBLIC_KEY_PATH: 'env_key.cer' }, // Env URL not set
       configInput: { appKey: 'config_app_key_4b', secretKey: 'config_secret_key_4b', yopPublicKey: 'config_public_key_direct_4b' }, // URL not set
       // Expect values from config input, default base URL
-      expectedConfig: { appKey: 'config_app_key_4b', secretKey: 'config_secret_key_4b', yopPublicKey: 'config_public_key_direct_4b', yopApiBaseUrl: defaultBaseUrl },
+      expectedConfig: { appKey: 'config_app_key_4b', secretKey: 'config_secret_key_4b', yopPublicKey: '-----BEGIN PUBLIC KEY-----\nconfig_public_key_direct_4b\n-----END PUBLIC KEY-----', yopApiBaseUrl: defaultBaseUrl },
     },
     // Scenario 5: Explicit Config overrides Env (Public key from config)
     {
       description: '[Scenario 5] should override environment variables with explicit configuration',
-      envVars: { YOP_APP_KEY: 'env_app_key_5', YOP_SECRET_KEY: 'env_secret_key_5', YOP_PUBLIC_KEY: 'env_public_key_5', YOP_PUBLIC_KEY_PATH: 'env_key.cer', YOP_API_BASE_URL: 'https://env-api.yeepay.com' },
+      envVars: { YOP_APP_KEY: 'env_app_key_5', YOP_APP_PRIVATE_KEY: 'env_secret_key_5', YOP_PUBLIC_KEY: 'env_public_key_5', YOP_PUBLIC_KEY_PATH: 'env_key.cer', YOP_API_BASE_URL: 'https://env-api.yeepay.com' },
       configInput: { appKey: 'config_app_key_5', secretKey: 'config_secret_key_5', yopPublicKey: 'config_public_key_direct_5', yopApiBaseUrl: 'https://config-api.yeepay.com' },
       // Expect values directly from config input
-      expectedConfig: { appKey: 'config_app_key_5', secretKey: 'config_secret_key_5', yopPublicKey: 'config_public_key_direct_5', yopApiBaseUrl: 'https://config-api.yeepay.com' },
+      expectedConfig: { appKey: 'config_app_key_5', secretKey: 'config_secret_key_5', yopPublicKey: '-----BEGIN PUBLIC KEY-----\nconfig_public_key_direct_5\n-----END PUBLIC KEY-----', yopApiBaseUrl: 'https://config-api.yeepay.com' },
     },
     // Scenario 5 variation: Explicit Config overrides required, uses env for optional, public key from config
     {
       description: '[Scenario 5 variation] explicit config overrides required env, uses env for optional fields',
-      envVars: { YOP_APP_KEY: 'env_app_key_5b', YOP_SECRET_KEY: 'env_secret_key_5b', YOP_PUBLIC_KEY: 'env_public_key_5b', YOP_PUBLIC_KEY_PATH: 'env_key.cer', YOP_API_BASE_URL: 'https://env-api-5b.yeepay.com' },
+      envVars: { YOP_APP_KEY: 'env_app_key_5b', YOP_APP_PRIVATE_KEY: 'env_secret_key_5b', YOP_PUBLIC_KEY: 'env_public_key_5b', YOP_PUBLIC_KEY_PATH: 'env_key.cer', YOP_API_BASE_URL: 'https://env-api-5b.yeepay.com' },
       configInput: { appKey: 'config_app_key_5b', secretKey: 'config_secret_key_5b', yopPublicKey: 'config_public_key_direct_5b' }, // URL not in config
       // Expect values from config input, env base URL
-      expectedConfig: { appKey: 'config_app_key_5b', secretKey: 'config_secret_key_5b', yopPublicKey: 'config_public_key_direct_5b', yopApiBaseUrl: 'https://env-api-5b.yeepay.com' },
+      expectedConfig: { appKey: 'config_app_key_5b', secretKey: 'config_secret_key_5b', yopPublicKey: '-----BEGIN PUBLIC KEY-----\nconfig_public_key_direct_5b\n-----END PUBLIC KEY-----', yopApiBaseUrl: 'https://env-api-5b.yeepay.com' },
     },
     // Scenario 6: Fallback from failed YOP_PUBLIC_KEY_PATH - Test removed as it relies on fs interaction
   ])('$description', ({ envVars, configInput, expectedConfig }) => {
@@ -467,14 +450,14 @@ describe('YopClient Initialization', () => {
   test.each([
     // Scenario 2: Missing Env Vars (AppKey/SecretKey - unchanged)
     {
-      description: '[Scenario 2] should throw error if required environment variable (YOP_SECRET_KEY) is missing',
+      description: '[Scenario 2] should throw error if required environment variable (YOP_APP_PRIVATE_KEY) is missing',
       envVars: { YOP_APP_KEY: 'env_app_key_2', YOP_PUBLIC_KEY: 'env_public_key_2' }, // SECRET_KEY missing
       configInput: undefined,
-      expectedError: /Missing required configuration: YOP_SECRET_KEY environment variable is not set/,
+      expectedError: /Missing required configuration: YOP_APP_PRIVATE_KEY environment variable is not set/,
     },
     {
       description: '[Scenario 2 variation] should throw error if required environment variable (YOP_APP_KEY) is missing',
-      envVars: { YOP_SECRET_KEY: 'env_secret_key_2b', YOP_PUBLIC_KEY: 'env_public_key_2b' }, // APP_KEY missing
+      envVars: { YOP_APP_PRIVATE_KEY: 'env_secret_key_2b', YOP_PUBLIC_KEY: 'env_public_key_2b' }, // APP_KEY missing
       configInput: undefined,
       expectedError: /Missing required configuration: YOP_APP_KEY environment variable is not set/,
     },

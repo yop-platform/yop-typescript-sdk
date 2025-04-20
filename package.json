@@ -1,6 +1,6 @@
 {
   "name": "@yeepay/yop-typescript-sdk",
-  "version": "0.2.1",
+  "version": "4.0.0",
   "description": "TypeScript SDK for interacting with YOP (YeePay Open Platform)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

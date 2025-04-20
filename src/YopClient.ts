@@ -29,7 +29,7 @@ export class YopClient {
    * - If `config` is *not* provided, the client attempts to load configuration from the following
    *   environment variables:
    *     - `YOP_APP_KEY`: Your application key.
-   *     - `YOP_SECRET_KEY`: Your application's private key (used for signing).
+   *     - `YOP_APP_PRIVATE_KEY`: Your application's private key (used for signing).
    *     - `YOP_PUBLIC_KEY`: The YeePay platform's public key (used for verifying responses).
    *     - `YOP_API_BASE_URL`: (Optional) The base URL for the YOP API. Defaults to 'https://openapi.yeepay.com/yop-center'.
    *
@@ -58,12 +58,12 @@ export class YopClient {
     const defaultBaseUrl = "https://openapi.yeepay.com";
     const defaultPublicKeyPath = path.resolve(
       __dirname, // Now defined using import.meta.url
-      "assets/yop_platform_rsa_cert_rsa.cer", // Relative path remains correct
+      "assets/yop_platform_rsa_cert_rsa.pem", // Relative path remains correct
     ); // Resolve default path
 
     const envBaseUrl = process.env.YOP_API_BASE_URL;
     const envAppKey = process.env.YOP_APP_KEY;
-    const envSecretKey = process.env.YOP_SECRET_KEY;
+    const envSecretKey = process.env.YOP_APP_PRIVATE_KEY;
     const envYopPublicKey = process.env.YOP_PUBLIC_KEY;
     const envYopPublicKeyPath = process.env.YOP_PUBLIC_KEY_PATH;
 
@@ -78,8 +78,17 @@ export class YopClient {
         config.yopApiBaseUrl ?? envBaseUrl ?? defaultBaseUrl;
       // Prioritize public key from config object if provided
       if (config.yopPublicKey) {
-        loadedYopPublicKey = config.yopPublicKey;
-        publicKeyLoadSource = "config object";
+        try {
+          // 使用 VerifyUtils.extractPublicKeyFromCertificate 处理配置对象中的公钥
+          loadedYopPublicKey = VerifyUtils.extractPublicKeyFromCertificate(config.yopPublicKey);
+          publicKeyLoadSource = "config object";
+        } catch (err: unknown) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          console.warn(
+            `[YopClient Config] Failed to process public key from config object: ${errorMessage}. Falling back...`,
+          );
+          // Fall through to next option
+        }
       }
     } else {
       // No config provided, use environment variables for base settings
@@ -92,14 +101,25 @@ export class YopClient {
     if (!loadedYopPublicKey) {
       if (envYopPublicKey) {
         // 1. Try YOP_PUBLIC_KEY environment variable
-        loadedYopPublicKey = envYopPublicKey;
-        publicKeyLoadSource = "YOP_PUBLIC_KEY env var";
+        try {
+          // 使用 VerifyUtils.extractPublicKeyFromCertificate 处理环境变量中的公钥
+          loadedYopPublicKey = VerifyUtils.extractPublicKeyFromCertificate(envYopPublicKey);
+          publicKeyLoadSource = "YOP_PUBLIC_KEY env var";
+        } catch (err: unknown) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          console.warn(
+            `[YopClient Config] Failed to process YOP_PUBLIC_KEY environment variable: ${errorMessage}. Falling back...`,
+          );
+          // Fall through to next option
+        }
       } else if (envYopPublicKeyPath) {
         // 2. Try YOP_PUBLIC_KEY_PATH environment variable
         publicKeyLoadSource = `YOP_PUBLIC_KEY_PATH env var (${envYopPublicKeyPath})`;
         try {
           const resolvedPath = path.resolve(envYopPublicKeyPath); // Resolve relative to CWD
-          loadedYopPublicKey = fs.readFileSync(resolvedPath, "utf-8");
+          const certContent = fs.readFileSync(resolvedPath, "utf-8");
+          // 使用 VerifyUtils.extractPublicKeyFromCertificate 从证书中提取公钥
+          loadedYopPublicKey = VerifyUtils.extractPublicKeyFromCertificate(certContent);
           console.info(
             `[YopClient Config] Loaded YOP public key from path: ${resolvedPath}`,
           );
@@ -116,7 +136,9 @@ export class YopClient {
       if (!loadedYopPublicKey) {
         publicKeyLoadSource = `default file (${defaultPublicKeyPath})`;
         try {
-          loadedYopPublicKey = fs.readFileSync(defaultPublicKeyPath, "utf-8");
+          const certContent = fs.readFileSync(defaultPublicKeyPath, "utf-8");
+          // 使用 VerifyUtils.extractPublicKeyFromCertificate 从证书中提取公钥
+          loadedYopPublicKey = VerifyUtils.extractPublicKeyFromCertificate(certContent);
           console.info(
             `[YopClient Config] Loaded YOP public key from default file: ${defaultPublicKeyPath}`,
           );
@@ -143,7 +165,7 @@ export class YopClient {
     if (!finalConfig.secretKey) {
       const errorMsg = config
         ? "Missing required configuration: secretKey is missing in the provided config object"
-        : "Missing required configuration: YOP_SECRET_KEY environment variable is not set";
+        : "Missing required configuration: YOP_APP_PRIVATE_KEY environment variable is not set";
       throw new Error(errorMsg);
     }
     // This validation should now always pass if loading logic is correct,

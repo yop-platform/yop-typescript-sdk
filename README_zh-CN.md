@@ -39,14 +39,14 @@ pnpm add @yeepay/yop-typescript-sdk
 1.  **通过环境变量（推荐，更简单）：**
     如果在构造函数中未传递配置对象，SDK 将自动尝试从以下环境变量加载所需配置：
     - `YOP_APP_KEY`: (必需) 您的易宝应用 AppKey。
-    - `YOP_SECRET_KEY`: (必需) 您应用的私钥（原始字符串，PEM 格式 PKCS#1 或 PKCS#8）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**
+    - `YOP_APP_PRIVATE_KEY`: (必需) 您应用的私钥（原始字符串，PEM 格式 PKCS#1 或 PKCS#8）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**
     - `YOP_PUBLIC_KEY`: (必需) 易宝平台的公钥（原始字符串，PEM 格式）。这是公钥*内容*，不是文件路径。请从易宝开发者门户下载。
     - `YOP_API_BASE_URL`: (可选) 易宝 API 的基础 URL。默认为生产环境 (`https://openapi.yeepay.com`)。
 
     *示例 `.env` 文件：*
     ```dotenv
     YOP_APP_KEY=your_app_key
-    YOP_SECRET_KEY='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'
+    YOP_APP_PRIVATE_KEY='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'
     YOP_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----'
     # YOP_API_BASE_URL=https://sandbox.yeepay.com # 可选，用于沙箱环境
     ```
@@ -67,7 +67,7 @@ pnpm add @yeepay/yop-typescript-sdk
       // 使用 yopClient 进行 API 调用...
     } catch (error) {
       console.error('从环境变量初始化 YopClient 失败：', error);
-      // 请确保所有必需的环境变量（YOP_APP_KEY, YOP_SECRET_KEY, YOP_PUBLIC_KEY）都已设置。
+      // 请确保所有必需的环境变量（YOP_APP_KEY, YOP_APP_PRIVATE_KEY, YOP_PUBLIC_KEY）都已设置。
     }
     ```
 
@@ -101,7 +101,7 @@ pnpm add @yeepay/yop-typescript-sdk
 当您向 `YopClient` 构造函数传递配置对象时，将使用这些选项。如果对象中省略了某个选项，SDK 将尝试回退到相应的环境变量。
 
 - `appKey` (string, 必需): 您的唯一应用标识符，由易宝提供。（回退到 `process.env.YOP_APP_KEY`）。
-- `secretKey` (string, 必需): 您应用的私钥（PEM 格式的原始字符串）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**（回退到 `process.env.YOP_SECRET_KEY`）。
+- `secretKey` (string, 必需): 您应用的私钥（PEM 格式的原始字符串）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**（回退到 `process.env.YOP_APP_PRIVATE_KEY`）。
 - `yopPublicKey` (string, 必需): 用于验证响应的易宝平台公钥（PEM 格式的原始字符串）。这必须是密钥*内容*，而不是文件路径。（回退到 `process.env.YOP_PUBLIC_KEY`）。
 - `yeepayApiBaseUrl` (string, 可选): 易宝 API 的基础 URL。（回退到 `process.env.YOP_API_BASE_URL`，然后默认为 `https://openapi.yeepay.com`）。
 
