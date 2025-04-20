@@ -60,22 +60,32 @@ export class RsaV3Util {
     const CanonicalURI = url;
     const CanonicalQueryString = RsaV3Util.getCanonicalQueryString(params, method);
 
-    // v3 signature headers, ordered!!!
-    const headers: Record<string, string> = {
+    // Define headers to be included in the signature
+    const headersToSign: Record<string, string> = {
       'x-yop-appkey': appKey,
-      'x-yop-content-sha256': RsaV3Util.getSha256AndHexStr(params, config, method), // Include SHA256 hash of body
+      'x-yop-content-sha256': RsaV3Util.getSha256AndHexStr(params, config, method),
       'x-yop-request-id': RsaV3Util.uuid(),
+      // Add other headers here if they need to be signed, e.g., 'x-yop-date'
     };
 
-    const CanonicalHeaders = RsaV3Util.getCanonicalHeaders(headers);
+    // Generate CanonicalHeaders and signedHeaders string according to YOP spec
+    const { canonicalHeaderString, signedHeadersString } = RsaV3Util.buildCanonicalHeaders(headersToSign);
+
     const CanonicalRequest =
       authString + "\n" +
       HTTPRequestMethod + "\n" +
       CanonicalURI + "\n" +
       CanonicalQueryString + "\n" +
-      CanonicalHeaders;
+      canonicalHeaderString; // Use the correctly formatted canonical headers
 
-    const signedHeaders = 'x-yop-appkey;x-yop-content-sha256;x-yop-request-id'; // Must match headers included in CanonicalHeaders
+    // Prepare all headers for the actual HTTP request
+    const allHeaders: Record<string, string> = {
+      ...headersToSign, // Include signed headers
+      'x-yop-sdk-version': '0.2.1', // 根据实际使用的SDK版本调整
+      'x-yop-sdk-lang': '@yeepay/yop-typescript-sdk',
+      // Authorization header will be added after signing
+    };
+
 
     let r = secretKey;
     const a = "-----BEGIN PRIVATE KEY-----";
@@ -102,30 +112,40 @@ export class RsaV3Util {
     sig = sig.replace(/[+]/g, '-');
     sig = sig.replace(/[/]/g, '_');
 
-    // Remove extra '='
-    let sig_len = sig.length;
-    let find_len = 0;
-    let start_len = sig_len - 1;
+    // Remove extra '=' padding
+    sig = sig.replace(/=+$/, ''); // More efficient regex to remove trailing '='
 
-    while (true) {
-      if (sig.substr(start_len, 1) === "=") {
-        find_len++;
-        start_len--;
-        continue;
-      }
-      break;
-    }
-
-    sig = sig.substr(0, sig_len - find_len);
     let signToBase64 = sig;
     signToBase64 += '$SHA256';
 
-    // Construct auth header
-    headers.Authorization = "YOP-RSA2048-SHA256 " + authString + "/" +
-      signedHeaders + "/" + signToBase64;
+    // Construct auth header using the correctly generated signedHeadersString
+    allHeaders.Authorization = "YOP-RSA2048-SHA256 " + authString + "/" +
+      signedHeadersString + "/" + signToBase64; // Use signedHeadersString
 
-    return headers;
+    return allHeaders; // Return all necessary headers
   }
+
+ static buildCanonicalHeaders(headersToSign: Record<string, string>): { canonicalHeaderString: string; signedHeadersString: string } {
+    const canonicalEntries: string[] = [];
+    const signedHeaderNames: string[] = [];
+
+    // Normalize, sort, and format headers
+    Object.keys(headersToSign)
+      .map(key => key.toLowerCase()) // Convert keys to lowercase
+      .sort() // Sort keys alphabetically
+      .forEach(lowerCaseKey => {
+        const originalKey = Object.keys(headersToSign).find(k => k.toLowerCase() === lowerCaseKey)!; // Find original case key
+        const value = headersToSign[originalKey]?.trim() ?? ''; // Get value, trim whitespace
+        canonicalEntries.push(`${lowerCaseKey}:${value}`);
+        signedHeaderNames.push(lowerCaseKey);
+      });
+
+    const canonicalHeaderString = canonicalEntries.join('\n');
+    const signedHeadersString = signedHeaderNames.join(';');
+
+    return { canonicalHeaderString, signedHeadersString };
+  }
+
 
   /**
    * Gets canonical query string for API requests
@@ -144,13 +164,14 @@ export class RsaV3Util {
    * @param headers - Request headers
    * @returns Canonical headers string
    */
-  static getCanonicalHeaders(headers: Record<string, string>): string {
-    const hArray: string[] = [];
-    Object.keys(headers).forEach(key => {
-      hArray.push(key + ':' + headers[key]);
-    });
-    return hArray.join('\n');
-  }
+  // This function is now replaced by buildCanonicalHeaders and can be removed or kept for reference
+  // static getCanonicalHeaders(headers: Record<string, string>): string {
+  //   const hArray: string[] = [];
+  //   Object.keys(headers).forEach(key => {
+  //     hArray.push(key + ':' + headers[key]);
+  //   });
+  //   return hArray.join('\n');
+  // }
 
   /**
    * Generates a UUID

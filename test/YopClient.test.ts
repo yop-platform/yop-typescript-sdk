@@ -72,10 +72,10 @@ describe('YopClient Request Handling', () => {
   };
   const mockAuthHeaders = {
     'Authorization': 'YOP-RSA3-TEST test-app-key/test-signature', // Example auth header
-    'x-yop-appkey': 'test-app-key',
+    'x-yop-appkey': mockConfig.appKey,
     'x-yop-request-id': 'mock-request-id',
     'x-yop-date': new Date().toISOString(),
-    'x-yop-sdk-version': '@yeepay/yop-typescript-sdk/0.2.0', // 根据实际使用的SDK版本调整
+    'x-yop-sdk-version': '@yeepay/yop-typescript-sdk/0.2.1', // 根据实际使用的SDK版本调整
     'x-yop-sdk-lang': 'nodejs',
   };
   const mockSuccessResponseData = { code: 'OPR00000', message: 'Success', result: { data: 'ok' } };
@@ -213,7 +213,7 @@ describe('YopClient Request Handling', () => {
     mockFetch.mockResolvedValue(mockResponse);
 
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
-       `Yeepay API Business Error: State=${mockBusinessErrorData.state}, Code=${mockBusinessErrorData.error.code}, Message=${mockBusinessErrorData.error.message}`
+       `YeePay API Business Error: State=${mockBusinessErrorData.state}, Code=${mockBusinessErrorData.error.code}, Message=${mockBusinessErrorData.error.message}`
     );
 
         // No isValidRsaResultArgs provided, expects it not to be called
@@ -239,7 +239,7 @@ describe('YopClient Request Handling', () => {
 
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
      
-   // getAuthHeaders *is* called before fetch, isValidRsaResult is not. `Yeepay API HTTP Error: Status=500, Details=${errorText}`
+   // getAuthHeaders *is* called before fetch, isValidRsaResult is not. `YeePay API HTTP Error: Status=500, Details=${errorText}`
     ); // Corrected assertion
 
     // Signature verification should not happen for HTTP errors before throwing
@@ -258,7 +258,7 @@ describe('YopClient Request Handling', () => {
     isValidRsaResultSpy.mockReturnValue(false); // Simulate verification failure
 
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
-      'Invalid response signature from Yeepay'
+      'Invalid response signature from YeePay'
     );
 
     // Verification is called and fails
@@ -302,7 +302,7 @@ describe
     mockFetch.mockRejectedValue(networkError);
 
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
-      `Network error calling Yeepay API: ${networkError.message}`
+      `Network error calling YeePay API: ${networkError.message}`
     );
      // getAuthHeaders *is* called before fetch, isValidRsaResult is not.
      expect(getAuthHeadersSpy).toHaveBeenCalled(); // Corrected assertion
@@ -316,7 +316,7 @@ describe
     mockSignal.aborted = true;
 
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
-       /Yeepay API request timed out after \d+(\.\d+)? seconds./
+       /YeePay API request timed out after \d+(\.\d+)? seconds./
    );
    // getAuthHeaders *is* called before fetch, isValidRsaResult is not.
    expect(getAuthHeadersSpy).toHaveBeenCalled(); // Corrected assertion
@@ -336,7 +336,7 @@ describe
     mockFetch.mockResolvedValue(mockResponse);
 
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
-      `Invalid JSON response received from Yeepay API: ${invalidJsonText}`
+      `Invalid JSON response received from YeePay API: ${invalidJsonText}`
     );
 
     // Signature verification happens *before* JSON parse attempt
@@ -359,7 +359,7 @@ describe
     isValidRsaResultSpy.mockReturnValue(true); // Assume verification passes
 
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
-      `Invalid JSON response received from Yeepay API: ${mockInvalidJsonResponseText}`
+      `Invalid JSON response received from YeePay API: ${mockInvalidJsonResponseText}`
     );
 
     // Verification *is* called before JSON parsing attempt
@@ -373,7 +373,7 @@ describe
 
 describe('YopClient Initialization', () => {
   let originalEnv: NodeJS.ProcessEnv;
-  const defaultBaseUrl = 'https://openapi.yeepay.com/yop-center';
+  const defaultBaseUrl = 'https://openapi.yeepay.com';
 
   // Setup env before each test in this block
   beforeEach(() => {

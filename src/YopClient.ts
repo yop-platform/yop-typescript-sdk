@@ -11,7 +11,7 @@ import type {
 } from "./types.js"; // Restore .js extension
 
 /**
- * YopClient provides methods for interacting with the Yeepay Open Platform (YOP) API.
+ * YopClient provides methods for interacting with the repay Open Platform (YOP) API.
  * It handles request signing, response verification, and configuration management.
  *
  * The client can be configured either through an explicit configuration object
@@ -30,7 +30,7 @@ export class YopClient {
    *   environment variables:
    *     - `YOP_APP_KEY`: Your application key.
    *     - `YOP_SECRET_KEY`: Your application's private key (used for signing).
-   *     - `YOP_PUBLIC_KEY`: The Yeepay platform's public key (used for verifying responses).
+   *     - `YOP_PUBLIC_KEY`: The YeePay platform's public key (used for verifying responses).
    *     - `YOP_API_BASE_URL`: (Optional) The base URL for the YOP API. Defaults to 'https://openapi.yeepay.com/yop-center'.
    *
    * An error will be thrown if required configuration fields (`appKey`, `secretKey`, `yopPublicKey`)
@@ -55,7 +55,7 @@ export class YopClient {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
 
-    const defaultBaseUrl = "https://openapi.yeepay.com/yop-center";
+    const defaultBaseUrl = "https://openapi.yeepay.com";
     const defaultPublicKeyPath = path.resolve(
       __dirname, // Now defined using import.meta.url
       "assets/yop_platform_rsa_cert_rsa.cer", // Relative path remains correct
@@ -275,19 +275,20 @@ export class YopClient {
 
     let response: Response;
     try {
-      // console.info(`[YopClient] fetch: ${fullFetchUrl.toString()}`);
+      console.info(`[YopClient] fetch: ${fullFetchUrl.toString()}`);
+      console.info(`[YopClient] fetchOptions: ${JSON.stringify(fetchOptions, null, 2)}`);
       response = await fetch(fullFetchUrl.toString(), fetchOptions);
       clearTimeout(timeoutId);
     } catch (fetchError: unknown) { // Type the caught error
       clearTimeout(timeoutId);
       if (fetchError instanceof Error && fetchError.name === "AbortError") {
         throw new Error(
-          `Yeepay API request timed out after ${timeout / 1000} seconds.`,
+          `YeePay API request timed out after ${timeout / 1000} seconds.`,
         );
       }
       const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
       throw new Error(
-        `Network error calling Yeepay API: ${errorMessage}`,
+        `Network error calling YeePay API: ${errorMessage}`,
       );
     }
 
@@ -304,7 +305,7 @@ export class YopClient {
           publicKey: yopPublicKey!, // Assert non-null: constructor logic ensures it's defined here
         })
       ) {
-        throw new Error("Invalid response signature from Yeepay");
+        throw new Error("Invalid response signature from YeePay");
       }
     } else {
       // Decide if missing signature is always an error, or only for successful responses
@@ -333,7 +334,7 @@ export class YopClient {
         // console.error(`Error parsing error response: ${e instanceof Error ? e.message : String(e)}`);
       }
       throw new Error(
-        `Yeepay API HTTP Error: Status=${response.status}, Details=${errorDetails}`,
+        `YeePay API HTTP Error: Status=${response.status}, Details=${errorDetails}`,
       );
     }
 
@@ -357,7 +358,7 @@ export class YopClient {
       if (responseBodyText.trim() !== "") {
         const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
         throw new Error(
-          `Invalid JSON response received from Yeepay API: ${responseBodyText}. Parse Error: ${errorMessage}`,
+          `Invalid JSON response received from YeePay API: ${responseBodyText}. Parse Error: ${errorMessage}`,
         );
       } else {
         // If body was empty and parsing still failed (shouldn't happen with the check above),
@@ -372,12 +373,12 @@ export class YopClient {
     // Optional: Centralized business error check based on YopResponse structure
     if (responseData.state && responseData.state !== "SUCCESS") {
       const error = responseData.error;
-      const errorMessage = `Yeepay API Business Error: State=${responseData.state}, Code=${error?.code || "N/A"}, Message=${error?.message || "Unknown error"}`;
+      const errorMessage = `YeePay API Business Error: State=${responseData.state}, Code=${error?.code || "N/A"}, Message=${error?.message || "Unknown error"}`;
       throw new Error(errorMessage);
     }
     // The old check might still be relevant if 'state' isn't always present
     // if (responseData.code && responseData.code !== 'OPR00000') { // Adjust 'OPR00000' if needed
-    //    const errorMessage = `Yeepay API Business Error: Code=${responseData?.code}, Message=${responseData?.message || 'Unknown error'}`;
+    //    const errorMessage = `YeePay API Business Error: Code=${responseData?.code}, Message=${responseData?.message || 'Unknown error'}`;
     //    throw new Error(errorMessage);
     // }
 
