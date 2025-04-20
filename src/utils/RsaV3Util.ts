@@ -87,25 +87,12 @@ export class RsaV3Util {
     };
 
 
-    let r = secretKey;
-    const a = "-----BEGIN PRIVATE KEY-----";
-    const b = "-----END PRIVATE KEY-----";
-    let private_key = "";
-    const len = r.length;
-    let start = 0;
-
-    while (start <= len) {
-      if (private_key.length) {
-        private_key += r.substr(start, 64) + '\n';
-      } else {
-        private_key = r.substr(start, 64) + '\n';
-      }
-      start += 64;
-    }
-
-    private_key = a + '\n' + private_key + b;
+    // Check if secretKey is already in PEM format
+    const private_key = secretKey.includes('-----BEGIN PRIVATE KEY-----')
+      ? secretKey
+      : this.formatPrivateKey(secretKey);
     const sign = crypto.createSign('RSA-SHA256');
-    sign.update(CanonicalRequest);
+    sign.update(CanonicalRequest, 'utf8');
     let sig = sign.sign(private_key, 'base64');
 
     // URL safe processing
@@ -218,7 +205,7 @@ export class RsaV3Util {
       } else {
         // Cast value to any as HttpUtils.normalize is designed to handle various input types
         // Note: normalize itself calls toString() if value is not null/undefined
-        normalizedValue = HttpUtils.normalize((value as any)?.toString().trim()); // Added optional chaining for safety before trim
+        normalizedValue = HttpUtils.normalize((value as any)?.toString()); // Remove trim()normalizedValue = HttpUtils.normalize((value as any)?.toString().trim()); // Added optional chaining for safety before trim
       }
 
       paramStrings.push(normalizedKey + '=' + normalizedValue);
@@ -259,10 +246,34 @@ export class RsaV3Util {
     }
 
     const sign = crypto.createHash('SHA256');
-    sign.update(str);
+    sign.update(str, 'utf8');
     const sig = sign.digest('hex');
 
     return sig;
+  }
+
+  /**
+   * Formats a raw private key string into PEM format
+   * @param rawKey - The raw private key string
+   * @returns Formatted PEM private key
+   */
+  private static formatPrivateKey(rawKey: string): string {
+    const BEGIN_MARKER = "-----BEGIN PRIVATE KEY-----";
+    const END_MARKER = "-----END PRIVATE KEY-----";
+    let formattedKey = "";
+    const len = rawKey.length;
+    let start = 0;
+
+    while (start <= len) {
+      if (formattedKey.length) {
+        formattedKey += rawKey.substr(start, 64) + '\n';
+      } else {
+        formattedKey = rawKey.substr(start, 64) + '\n';
+      }
+      start += 64;
+    }
+
+    return BEGIN_MARKER + '\n' + formattedKey + END_MARKER;
   }
 }
 
