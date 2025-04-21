@@ -383,7 +383,7 @@ describe('RsaV3Util', () => {
     });
   });
 
-  describe('getAuthHeaders', () => {
+  describe('buildAuthorizationHeader', () => {
     // Helper to extract parts of the Authorization header
     const parseAuthHeader = (authHeader: string | undefined) => {
       if (!authHeader) return null;
@@ -412,7 +412,7 @@ describe('RsaV3Util', () => {
 
     testCases.forEach(tc => {
       it(`should generate correct auth headers structure for ${tc.name}`, () => {
-        const headers = RsaV3Util.getAuthHeaders({
+        const headers = RsaV3Util.buildAuthorizationHeader({
           appKey: TEST_APP_KEY,
           secretKey: TEST_APP_PRIVATE_KEY,
           method: tc.method,
@@ -533,7 +533,7 @@ rCcNrf36RzK+PLLPq/uPAaY=
             // 模拟 uuid 函数
             RsaV3Util.uuid = () => DOC_REQUEST_ID;
 
-            const headers = RsaV3Util.getAuthHeaders({
+            const headers = RsaV3Util.buildAuthorizationHeader({
                 appKey: DOC_APP_KEY,
                 secretKey: DOC_SECRET_KEY,
                 method: DOC_METHOD,
@@ -613,8 +613,8 @@ rCcNrf36RzK+PLLPq/uPAaY=
       expect(signature.endsWith('$SHA256')).toBe(true);
     });
 
-    it('should produce the same signature as getAuthHeaders for the same input', () => {
-      // 构建与 getAuthHeaders 相同的输入
+    it('should produce the same signature as buildAuthorizationHeader for the same input', () => {
+      // 构建与 buildAuthorizationHeader 相同的输入
       const options = {
         appKey: TEST_APP_KEY,
         secretKey: TEST_APP_PRIVATE_KEY,
@@ -624,13 +624,13 @@ rCcNrf36RzK+PLLPq/uPAaY=
         config: { contentType: '' }
       };
 
-      // 获取 getAuthHeaders 生成的头部
-      const headers = RsaV3Util.getAuthHeaders(options);
+      // 获取 buildAuthorizationHeader 生成的头部
+      const headers = RsaV3Util.buildAuthorizationHeader(options);
       const authParts = headers.Authorization.match(/^YOP-RSA2048-SHA256 (yop-auth-v3\/.*?\/.*?\/\d+)\/(.*?)\/(.*?)$/);
       const signatureFromHeaders = authParts ? authParts[3] : '';
 
       // 这个测试的目的是验证签名方法的格式和基本功能，而不是精确匹配
-      // 因为 getAuthHeaders 中生成的 canonicalRequest 包含动态生成的 requestId 等
+      // 因为 buildAuthorizationHeader 中生成的 canonicalRequest 包含动态生成的 requestId 等
       // 所以我们只验证签名的格式和特性
       
       // 验证签名格式
@@ -761,7 +761,7 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
         const expectedContentSha256 = '701e66577e40ae6c9de2e9360d08ab7d947353eb00c7ff2c9c01133759d58af7';
         
         // 生成认证头
-        const headers = RsaV3Util.getAuthHeaders({
+        const headers = RsaV3Util.buildAuthorizationHeader({
           appKey: TEST_APP_KEY,
           secretKey: TEST_APP_PRIVATE_KEY,
           method: 'POST',
@@ -836,7 +836,7 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
         expect(actualContentSha256).toBe(expectedContentSha256);
         
         // 生成认证头
-        const headers = RsaV3Util.getAuthHeaders({
+        const headers = RsaV3Util.buildAuthorizationHeader({
           appKey: TEST_APP_KEY,
           secretKey: TEST_APP_PRIVATE_KEY,
           method: 'POST',

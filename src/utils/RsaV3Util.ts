@@ -62,11 +62,12 @@ export class RsaV3Util {
       'x-yop-content-sha256': RsaV3Util.getSha256AndHexStr(params, config, method),
       'x-yop-request-id': RsaV3Util.uuid(),
       // Add other headers here if they need to be signed, e.g., 'x-yop-date'
-      // Add content-type if it exists in the config
-      ...(config.contentType && { 'content-type': config.contentType }),
+      // Add content-type if it exists in the config and method is POST
+      ...(method.toUpperCase() === 'POST' && config.contentType && { 'content-type': config.contentType }),
     };
 
     // Generate CanonicalHeaders and signedHeaders string according to YOP spec
+    // 使用修正后的 buildCanonicalHeaders
     const { canonicalHeaderString, signedHeadersString } = RsaV3Util.buildCanonicalHeaders(headersToSign);
 
     const CanonicalRequest =
@@ -95,32 +96,47 @@ export class RsaV3Util {
     return allHeaders; // Return all necessary headers
   }
 
- static buildCanonicalHeaders(headersToSign: Record<string, string>): { canonicalHeaderString: string; signedHeadersString: string } {
+  /**
+   * Builds the canonical header string and the list of signed header names.
+   * Includes 'content-type' (if present) and all 'x-yop-*' headers.
+   * @param headersToSign - Headers potentially included in the signature.
+   * @returns An object containing the canonical header string and the signed headers string.
+   */
+  static buildCanonicalHeaders(headersToSign: Record<string, string>): { canonicalHeaderString: string; signedHeadersString: string } {
     const canonicalEntries: string[] = [];
-    const signedHeaderNames: string[] = [];
+    const signedHeaderNames: string[] = []; // 用于构建 signedHeadersString
 
-    // Normalize, sort, and format all provided headers according to YOP spec
-    Object.keys(headersToSign)
-      .map(key => key.toLowerCase()) // Convert keys to lowercase for sorting and processing
-      .filter(key => key.startsWith('x-yop-')) // 只包含 x-yop- 开头的头部
-      .sort() // Sort keys alphabetically
+    // 1. 筛选需要参与签名的 Header (content-type 和 x-yop-*)
+    const headersForSigning = Object.keys(headersToSign)
+      .filter(key => key.toLowerCase() === 'content-type' || key.toLowerCase().startsWith('x-yop-'))
+      .reduce((obj, key) => {
+        // Ensure we don't add undefined/null headers
+        if (headersToSign[key] !== undefined && headersToSign[key] !== null) {
+            obj[key] = headersToSign[key];
+        }
+        return obj;
+      }, {} as Record<string, string>);
+
+    // 2. 排序、编码并构建 canonicalHeaderString 和 signedHeaderNames
+    Object.keys(headersForSigning)
+      .map(key => key.toLowerCase()) // 转小写用于排序和 signedHeadersString
+      .sort() // 按字母顺序排序
       .forEach(lowerCaseKey => {
-        // Find the original key to get the original value
-        const originalKey = Object.keys(headersToSign).find(k => k.toLowerCase() === lowerCaseKey);
-        if (originalKey === undefined) return; // Should not happen, but safety check
+        const originalKey = Object.keys(headersForSigning).find(k => k.toLowerCase() === lowerCaseKey);
+        if (originalKey === undefined) return; // 安全检查
 
-        const value = headersToSign[originalKey]?.trim() ?? ''; // Get value, trim whitespace
+        const value = headersForSigning[originalKey]?.trim() ?? ''; // 获取原始值并 trim
 
-        // URL-encode both the lowercase name and the trimmed value as per documentation
+        // 对 key 和 value 进行 URL 编码
         const encodedName = HttpUtils.normalize(lowerCaseKey);
         const encodedValue = HttpUtils.normalize(value);
 
         canonicalEntries.push(`${encodedName}:${encodedValue}`);
-        signedHeaderNames.push(lowerCaseKey); // signedHeadersString uses lowercase names *before* encoding
+        signedHeaderNames.push(lowerCaseKey); // signedHeadersString 使用编码前的、小写的 key
       });
 
     const canonicalHeaderString = canonicalEntries.join('\n');
-    const signedHeadersString = signedHeaderNames.join(';');
+    const signedHeadersString = signedHeaderNames.join(';'); // 使用分号连接
 
     return { canonicalHeaderString, signedHeadersString };
   }
@@ -171,10 +187,9 @@ export class RsaV3Util {
   /**
    * Gets canonical parameters string
    * @param params - Request parameters
-   * @param type - Content type
    * @returns Canonical parameters string
    */
-  static getCanonicalParams(params: Record<string, unknown> = {}, type?: string): string {
+  static getCanonicalParams(params: Record<string, unknown> = {}): string { // Removed unused 'type' parameter
     const paramStrings: string[] = [];
 
     for (const key in params) {
@@ -189,18 +204,8 @@ export class RsaV3Util {
       }
 
       const normalizedKey = HttpUtils.normalize(key.trim());
-      let normalizedValue;
-      
-      // 对于 form-urlencoded 类型，需要对值进行双重编码
-      if (type === 'application/x-www-form-urlencoded') {
-        // 先对值进行一次编码
-        const firstNormalized = HttpUtils.normalize((value as any)?.toString());
-        // 然后对编码后的值再进行一次编码
-        normalizedValue = firstNormalized.replace(/%/g, '%25');
-      } else {
-        // 对于其他类型，只进行一次编码
-        normalizedValue = HttpUtils.normalize((value as any)?.toString());
-      }
+      let normalizedValue = HttpUtils.normalize((value as any)?.toString()); // Standard single URL encoding for signature calculation
+      // Note: Double encoding logic was removed as it's handled in YopClient.ts
 
       paramStrings.push(normalizedKey + '=' + normalizedValue);
     }
@@ -233,10 +238,10 @@ export class RsaV3Util {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
       return obj as Record<string, unknown>;
     }
-    
+
     const sortedObj: Record<string, unknown> = {};
     const keys = Object.keys(obj).sort();
-    
+
     for (const key of keys) {
       if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
         // 递归排序嵌套对象
@@ -245,7 +250,7 @@ export class RsaV3Util {
         sortedObj[key] = obj[key];
       }
     }
-    
+
     return sortedObj;
   }
 
@@ -291,7 +296,7 @@ export class RsaV3Util {
     const private_key = secretKey.includes('-----BEGIN PRIVATE KEY-----')
       ? secretKey
       : this.formatPrivateKey(secretKey);
-    
+
     const signer = crypto.createSign('RSA-SHA256');
     signer.update(canonicalRequest, 'utf8');
     let sig = signer.sign(private_key, 'base64');

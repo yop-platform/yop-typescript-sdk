@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url"; // Added for ESM __dirname equivalent
+import { HttpUtils } from "./utils/HttpUtils.js"; // Import HttpUtils
 import { RsaV3Util } from "./utils/RsaV3Util.js"; // Restore .js extension
 import { VerifyUtils } from "./utils/VerifyUtils.js"; // Restore .js extension
 import type {
@@ -8,7 +9,10 @@ import type {
   YopRequestOptions,
   ContentType,
   YopResponse,
+  YopResponseMetadata, // Import YopResponseMetadata
 } from "./types.js"; // Restore .js extension
+import fetch, { Headers, RequestInit, Response } from 'node-fetch'; // Import fetch types
+import crypto from 'crypto'; // Import crypto for KeyObject type hint
 
 /**
  * YopClient provides methods for interacting with the repay Open Platform (YOP) API.
@@ -19,132 +23,99 @@ import type {
  */
 export class YopClient {
   private readonly config: YopConfig;
+  private readonly yopPublicKeyObject: crypto.KeyObject; // Store KeyObject
   private readonly timeout: number = 10000; // Default timeout, added explicit type
 
   /**
    * Creates an instance of YopClient.
-   *
-   * The constructor accepts an optional configuration object (`YopConfig`).
-   * - If `config` is provided, it takes precedence over environment variables for configuration settings.
-   * - If `config` is *not* provided, the client attempts to load configuration from the following
-   *   environment variables:
-   *     - `YOP_APP_KEY`: Your application key.
-   *     - `YOP_APP_PRIVATE_KEY`: Your application's private key (used for signing).
-   *     - `YOP_PUBLIC_KEY`: The YeePay platform's public key (used for verifying responses).
-   *     - `YOP_API_BASE_URL`: (Optional) The base URL for the YOP API. Defaults to 'https://openapi.yeepay.com/yop-center'.
-   *
-   * An error will be thrown if required configuration fields (`appKey`, `secretKey`, `yopPublicKey`)
-   * are missing, whether attempting to load from the `config` object or environment variables.
-   *
-   * @param config - Optional configuration object for the YOP client.
-   * @throws {Error} If required configuration is missing.
+   * ... (constructor docs remain the same) ...
    */
   public constructor(config?: YopConfig) {
-    this.config = this._loadConfig(config);
+    const loadedConfig = this._loadConfig(config);
+    this.config = loadedConfig;
+    // Initialize KeyObject after loading config string/buffer
+    try {
+        // Use getPublicKeyObject which now expects string | Buffer
+        this.yopPublicKeyObject = VerifyUtils.getPublicKeyObject(loadedConfig.yopPublicKey);
+    } catch (error) {
+        // If getPublicKeyObject throws during initialization, re-throw as a critical config error
+        throw new Error(`[YopClient Constructor] Failed to create YOP public key object during initialization: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
    * Loads and validates the configuration, merging provided config, environment variables, and defaults.
-   * Implements prioritized loading for the YOP public key.
+   * Returns the configuration containing the public key as string or Buffer.
    * @param config Optional configuration object provided during instantiation.
-   * @returns The validated and merged YopConfig.
+   * @returns The validated and merged YopConfig with publicKey as string/Buffer.
    * @throws Error if required configuration fields (appKey, secretKey) are missing or if public key loading fails definitively.
    */
-  private _loadConfig(config?: YopConfig): YopConfig {
+  private _loadConfig(config?: YopConfig): YopConfig & { yopPublicKey: string | Buffer } { // Ensure return type includes yopPublicKey
     // ESM equivalent for __dirname
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
 
     const defaultBaseUrl = "https://openapi.yeepay.com";
     const defaultPublicKeyPath = path.resolve(
-      __dirname, // Now defined using import.meta.url
-      "assets/yop_platform_rsa_cert_rsa.pem", // Relative path remains correct
-    ); // Resolve default path
+      __dirname,
+      "assets/yop_platform_rsa_cert_rsa.pem",
+    );
 
     const envBaseUrl = process.env.YOP_API_BASE_URL;
     const envAppKey = process.env.YOP_APP_KEY;
     const envSecretKey = process.env.YOP_APP_PRIVATE_KEY;
-    const envYopPublicKey = process.env.YOP_PUBLIC_KEY;
-    const envYopPublicKeyPath = process.env.YOP_PUBLIC_KEY_PATH;
+    const envYopPublicKey = process.env.YOP_PUBLIC_KEY; // Key as string
+    const envYopPublicKeyPath = process.env.YOP_PUBLIC_KEY_PATH; // Path to key file
 
     let finalConfig: Partial<YopConfig> = {};
-    let loadedYopPublicKey: string | undefined;
-    let publicKeyLoadSource = "unknown"; // For error messages
+    let loadedYopPublicKeyInput: string | Buffer | undefined; // Store the raw input (string or buffer)
+    let publicKeyLoadSource = "unknown";
 
     if (config) {
-      // Prioritize provided config for base settings
       finalConfig = { ...config };
-      finalConfig.yopApiBaseUrl =
-        config.yopApiBaseUrl ?? envBaseUrl ?? defaultBaseUrl;
-      // Prioritize public key from config object if provided
+      finalConfig.yopApiBaseUrl = config.yopApiBaseUrl ?? envBaseUrl ?? defaultBaseUrl;
+      // Prioritize public key input from config object if provided
       if (config.yopPublicKey) {
-        try {
-          // 使用 VerifyUtils.extractPublicKeyFromCertificate 处理配置对象中的公钥
-          loadedYopPublicKey = VerifyUtils.extractPublicKeyFromCertificate(config.yopPublicKey);
-          publicKeyLoadSource = "config object";
-        } catch (err: unknown) {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          console.warn(
-            `[YopClient Config] Failed to process public key from config object: ${errorMessage}. Falling back...`,
-          );
-          // Fall through to next option
-        }
+        loadedYopPublicKeyInput = config.yopPublicKey;
+        publicKeyLoadSource = "config object";
       }
     } else {
-      // No config provided, use environment variables for base settings
       finalConfig.appKey = envAppKey;
       finalConfig.secretKey = envSecretKey;
       finalConfig.yopApiBaseUrl = envBaseUrl ?? defaultBaseUrl;
     }
 
-    // If public key wasn't loaded from config object, apply prioritized loading
-    if (!loadedYopPublicKey) {
+    // If public key input wasn't loaded from config object, apply prioritized loading
+    if (!loadedYopPublicKeyInput) {
       if (envYopPublicKey) {
-        // 1. Try YOP_PUBLIC_KEY environment variable
-        try {
-          // 使用 VerifyUtils.extractPublicKeyFromCertificate 处理环境变量中的公钥
-          loadedYopPublicKey = VerifyUtils.extractPublicKeyFromCertificate(envYopPublicKey);
-          publicKeyLoadSource = "YOP_PUBLIC_KEY env var";
-        } catch (err: unknown) {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          console.warn(
-            `[YopClient Config] Failed to process YOP_PUBLIC_KEY environment variable: ${errorMessage}. Falling back...`,
-          );
-          // Fall through to next option
-        }
+        // 1. Try YOP_PUBLIC_KEY environment variable (string)
+        loadedYopPublicKeyInput = envYopPublicKey;
+        publicKeyLoadSource = "YOP_PUBLIC_KEY env var";
       } else if (envYopPublicKeyPath) {
         // 2. Try YOP_PUBLIC_KEY_PATH environment variable
         publicKeyLoadSource = `YOP_PUBLIC_KEY_PATH env var (${envYopPublicKeyPath})`;
         try {
-          const resolvedPath = path.resolve(envYopPublicKeyPath); // Resolve relative to CWD
-          const certContent = fs.readFileSync(resolvedPath, "utf-8");
-          // 使用 VerifyUtils.extractPublicKeyFromCertificate 从证书中提取公钥
-          loadedYopPublicKey = VerifyUtils.extractPublicKeyFromCertificate(certContent);
-          console.info(
-            `[YopClient Config] Loaded YOP public key from path: ${resolvedPath}`,
-          );
-        } catch (err: unknown) { // Type the caught error
+          const resolvedPath = path.resolve(envYopPublicKeyPath);
+          loadedYopPublicKeyInput = fs.readFileSync(resolvedPath); // Read as Buffer
+          console.info(`[YopClient Config] Loaded YOP public key from path: ${resolvedPath}`);
+        } catch (err: unknown) {
           const errorMessage = err instanceof Error ? err.message : String(err);
           console.warn(
             `[YopClient Config] Failed to load YOP public key from path specified in YOP_PUBLIC_KEY_PATH (${envYopPublicKeyPath}): ${errorMessage}. Falling back...`,
           );
-          // Fall through to default
         }
       }
 
       // 3. Fallback to default certificate file if still not loaded
-      if (!loadedYopPublicKey) {
+      if (!loadedYopPublicKeyInput) {
         publicKeyLoadSource = `default file (${defaultPublicKeyPath})`;
         try {
-          const certContent = fs.readFileSync(defaultPublicKeyPath, "utf-8");
-          // 使用 VerifyUtils.extractPublicKeyFromCertificate 从证书中提取公钥
-          loadedYopPublicKey = VerifyUtils.extractPublicKeyFromCertificate(certContent);
+          loadedYopPublicKeyInput = fs.readFileSync(defaultPublicKeyPath); // Read as Buffer
           console.info(
             `[YopClient Config] Loaded YOP public key from default file: ${defaultPublicKeyPath}`,
           );
-        } catch (err: unknown) { // Type the caught error
+        } catch (err: unknown) {
           const errorMessage = err instanceof Error ? err.message : String(err);
-          // If default file also fails, this is a critical error
           throw new Error(
             `[YopClient Config] Failed to load YOP public key from default path (${defaultPublicKeyPath}): ${errorMessage}. Configuration failed.`,
           );
@@ -152,47 +123,40 @@ export class YopClient {
       }
     }
 
-    // Assign the loaded public key to the final config
-    finalConfig.yopPublicKey = loadedYopPublicKey;
+    // Assign the loaded public key input to the final config
+    finalConfig.yopPublicKey = loadedYopPublicKeyInput;
 
-    // Validate required fields after merging and loading
+    // Validate required fields
     if (!finalConfig.appKey) {
-      const errorMsg = config
-        ? "Missing required configuration: appKey is missing in the provided config object"
-        : "Missing required configuration: YOP_APP_KEY environment variable is not set";
+      const errorMsg = config ? "Missing appKey in config" : "Missing YOP_APP_KEY env var";
       throw new Error(errorMsg);
     }
     if (!finalConfig.secretKey) {
-      const errorMsg = config
-        ? "Missing required configuration: secretKey is missing in the provided config object"
-        : "Missing required configuration: YOP_APP_PRIVATE_KEY environment variable is not set";
+      const errorMsg = config ? "Missing secretKey in config" : "Missing YOP_APP_PRIVATE_KEY env var";
       throw new Error(errorMsg);
     }
-    // This validation should now always pass if loading logic is correct,
-    // but keep it as a safeguard. The error message reflects the final attempt source.
-    // Restore the mandatory check. If loading fails after all attempts (including default), it's an error.
     if (!finalConfig.yopPublicKey) {
-      // This state should ideally be unreachable due to the throw in the default file catch block inside _loadConfig
-      throw new Error(
-        `[YopClient Config] Critical Error: Failed to load required yopPublicKey from any source (${publicKeyLoadSource}). Cannot proceed without platform public key for signature verification.`,
-      );
+       // This should be unreachable if loading logic is correct
+      throw new Error(`[YopClient Config] Critical Error: Failed to load required yopPublicKey from any source (${publicKeyLoadSource}).`);
     }
 
-    // Ensure the final object matches YopConfig type
-    return finalConfig as YopConfig;
+    // Return config with yopPublicKey as string | Buffer
+    return finalConfig as YopConfig & { yopPublicKey: string | Buffer };
   }
+
 
   public async request<T extends YopResponse = YopResponse>(
     options: YopRequestOptions,
   ): Promise<T> {
     const { method, apiUrl, params, body } = options;
-    // Read config from instance property
     const {
       appKey,
       secretKey,
-      yopPublicKey,
-      yopApiBaseUrl: yopApiBaseUrl,
+      // yopPublicKey, // No longer needed directly here
+      yopApiBaseUrl,
     } = this.config;
+    // Use the stored KeyObject for verification
+    const yopPublicKeyObject = this.yopPublicKeyObject;
     const timeout = options.timeout ?? this.timeout;
     const contentType =
       options.contentType ??
@@ -204,12 +168,12 @@ export class YopClient {
     let fullFetchUrl: URL;
     let sdkHeaders: Record<string, string> = {};
 
-    // Construct the full URL, ensuring exactly one slash between base and api path
-    const yopCenterBasePath = `${yopApiBaseUrl!.replace(/\/$/, "")}/yop-center`; // Ensure base ends without / and add /yop-center
-    const cleanedApiUrl = apiUrl.startsWith("/") ? apiUrl.substring(1) : apiUrl; // Ensure api path starts without /
-    const fullUrlString = `${yopCenterBasePath}/${cleanedApiUrl}`; // Join with exactly one /
-    fullFetchUrl = new URL(fullUrlString); // Create URL object from the complete string
+    const yopCenterBasePath = `${yopApiBaseUrl!.replace(/\/$/, "")}/yop-center`;
+    const cleanedApiUrl = apiUrl.startsWith("/") ? apiUrl.substring(1) : apiUrl;
+    const fullUrlString = `${yopCenterBasePath}/${cleanedApiUrl}`;
+    fullFetchUrl = new URL(fullUrlString);
 
+    // --- Header Generation (remains the same, uses RsaV3Util) ---
     if (method === "GET" && params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {
@@ -223,8 +187,9 @@ export class YopClient {
           method: "GET",
           url: apiUrl,
           params: params,
+          config: { contentType },
         });
-      } catch (sdkError: unknown) { // Type the caught error
+      } catch (sdkError: unknown) {
         const errorMessage = sdkError instanceof Error ? sdkError.message : String(sdkError);
         throw new Error(
           `Failed to generate YOP headers (GET with params): ${errorMessage}`,
@@ -237,9 +202,10 @@ export class YopClient {
           secretKey,
           method: "POST",
           url: apiUrl,
-          params: body, // Pass body object as params for signing
+          params: body,
+          config: { contentType },
         });
-      } catch (sdkError: unknown) { // Type the caught error
+      } catch (sdkError: unknown) {
         const errorMessage = sdkError instanceof Error ? sdkError.message : String(sdkError);
         throw new Error(
           `Failed to generate YOP headers (POST): ${errorMessage}`,
@@ -249,21 +215,23 @@ export class YopClient {
       if (contentType === "application/json") {
         requestBodyString = JSON.stringify(body);
       } else {
-        requestBodyString = new URLSearchParams(
-          Object.entries(body)
+        const encodedBodyEntries = Object.entries(body)
             .filter(([, value]) => value !== undefined)
-            .map(([key, value]) => [key, String(value)]) as [string, string][],
+            .map(([key, value]) => [key, HttpUtils.normalize(String(value))]);
+        requestBodyString = new URLSearchParams(
+            encodedBodyEntries as [string, string][]
         ).toString();
       }
     } else if (method === "GET" && !params) {
-      try {
+       try {
         sdkHeaders = RsaV3Util.getAuthHeaders({
           appKey,
           secretKey,
           method: "GET",
           url: apiUrl,
+          config: { contentType },
         });
-      } catch (sdkError: unknown) { // Type the caught error
+      } catch (sdkError: unknown) {
         const errorMessage = sdkError instanceof Error ? sdkError.message : String(sdkError);
         throw new Error(
           `Failed to generate YOP headers (GET no params): ${errorMessage}`,
@@ -275,12 +243,9 @@ export class YopClient {
           "Invalid request configuration: POST method requires a body.",
         );
       }
-      // Handle other invalid configurations if necessary, or let fetch handle them
-      // throw new Error(`Invalid request configuration: method=${method}, params=${params ? 'present' : 'absent'}, body=${body ? 'present' : 'absent'}`);
     }
 
     const fetchHeaders = new Headers(sdkHeaders);
-
     if (method === "POST" && body) {
       fetchHeaders.set("Content-Type", contentType);
     }
@@ -297,12 +262,16 @@ export class YopClient {
 
     let response: Response;
     try {
-      console.info(`[YopClient] fetch: ${fullFetchUrl.toString()}`);
-      console.info(`[YopClient] fetchOptions: ${JSON.stringify(fetchOptions, null, 2)}`);
+      console.info(`[YopClient] fetch URL: ${fullFetchUrl.toString()}`);
+      const headersObject: Record<string, string> = {};
+      fetchHeaders.forEach((value, key) => { headersObject[key] = value; });
+      console.info(`[YopClient] fetch Method: ${fetchOptions.method}`);
+      console.info(`[YopClient] fetch Headers: ${JSON.stringify(headersObject, null, 2)}`);
+      console.info(`[YopClient] fetch Body: ${requestBodyString}`);
       response = await fetch(fullFetchUrl.toString(), fetchOptions);
       clearTimeout(timeoutId);
-    } catch (fetchError: unknown) { // Type the caught error
-      clearTimeout(timeoutId);
+    } catch (fetchError: unknown) {
+       clearTimeout(timeoutId);
       if (fetchError instanceof Error && fetchError.name === "AbortError") {
         throw new Error(
           `YeePay API request timed out after ${timeout / 1000} seconds.`,
@@ -315,101 +284,94 @@ export class YopClient {
     }
 
     const responseBodyText = await response.text();
+    const yopSignHeader = response.headers.get("x-yop-sign");
+    const yopRequestId = response.headers.get("x-yop-request-id");
 
-    const yopSign = response.headers.get("x-yop-sign");
-    // Restore original logic: If yopSign header exists, verification MUST be performed.
-    // If client initialization succeeded, yopPublicKey is guaranteed to be available here.
-    if (yopSign) {
+    let parsedResult: any = {};
+    let yopSignBody: string | undefined;
+    try {
+        if (responseBodyText.trim() !== "") {
+            parsedResult = JSON.parse(responseBodyText);
+            if (typeof parsedResult === 'object' && parsedResult !== null && 'sign' in parsedResult) {
+                yopSignBody = parsedResult.sign;
+            }
+        } else if (response.ok) {
+             console.warn("[YopClient] Received empty response body for a successful request.");
+        }
+    } catch (parseError: unknown) {
+        if (responseBodyText.trim() !== "") {
+            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+            console.warn(
+              `[YopClient] Invalid JSON response received: ${responseBodyText}. Parse Error: ${errorMessage}`
+            );
+        } else {
+             console.error("[YopClient] Error parsing empty response body (unexpected).");
+        }
+    }
+
+    const metadata: YopResponseMetadata = {
+        yopSign: yopSignHeader,
+        yopRequestId: yopRequestId,
+    };
+
+    const signatureToVerify = yopSignHeader || yopSignBody;
+
+    if (signatureToVerify) {
       if (
-        !VerifyUtils.isValidRsaResult({
+        !VerifyUtils.isValidRsaResult({ // Use isValidRsaResult
           data: responseBodyText,
-          sign: yopSign,
-          publicKey: yopPublicKey!, // Assert non-null: constructor logic ensures it's defined here
+          sign: signatureToVerify,
+          publicKey: yopPublicKeyObject, // Pass the KeyObject
         })
       ) {
+        console.error("[YopClient] Response signature verification failed!");
+        console.error("[YopClient] Response Body:", responseBodyText);
+        console.error("[YopClient] Signature Used (Header/Body):", signatureToVerify);
         throw new Error("Invalid response signature from YeePay");
+      } else {
+        console.info("[YopClient] Response signature verification successful using signature from", yopSignHeader ? "header." : "body.");
       }
     } else {
-      // Decide if missing signature is always an error, or only for successful responses
       if (response.ok) {
-        // Potentially throw an error here if signature is mandatory for success
-        // console.warn(`[YopClient] Missing x-yop-sign header in successful response: ${method} ${apiUrl}`);
+         console.warn(`[YopClient] Missing signature in response header (x-yop-sign) and body (sign field): ${method} ${apiUrl}`);
       }
     }
 
     if (!response.ok) {
-      // Attempt to parse error response for more details
       let errorDetails = responseBodyText;
       try {
-        // Type the parsed error more safely
-        const parsedError: unknown = JSON.parse(responseBodyText);
-        // Check if it's an object before accessing properties
-        if (typeof parsedError === 'object' && parsedError !== null) {
-            // Attempt to access potential error structures
-            const errorObj = (parsedError as any).error || parsedError; // Handle nested 'error' or top-level error
+        if (typeof parsedResult === 'object' && parsedResult !== null) {
+            const errorObj = parsedResult.error || parsedResult;
             const code = errorObj?.code || "N/A";
-            const message = errorObj?.message || responseBodyText; // Fallback to raw text if message not found
+            const message = errorObj?.message || responseBodyText;
             errorDetails = `Code=${code}, Message=${message}`;
         }
-      } catch (e: unknown) { // Type the caught error
-        // Ignore parsing error, use raw text
-        // console.error(`Error parsing error response: ${e instanceof Error ? e.message : String(e)}`);
+      } catch (e: unknown) {
+         // Ignore parsing error
       }
       throw new Error(
         `YeePay API HTTP Error: Status=${response.status}, Details=${errorDetails}`,
       );
     }
 
-    let responseData: T;
-    try {
-      // console.info(`responseBodyText: ${responseBodyText}`);
-      // Handle empty successful response gracefully
-      if (response.ok && responseBodyText.trim() === "") {
-        console.warn(
-          "[YopClient] Received empty response body for a successful request.",
-        );
-        // Return a default structure or an empty object, cast as T.
-        // Adjust this based on how downstream code expects to handle empty success.
-        // Using an empty object might be safer if T is expected to be an object.
-        responseData = {} as T;
-      } else {
-        responseData = JSON.parse(responseBodyText) as T;
-      }
-    } catch (parseError: unknown) { // Type the caught error
-      // Only throw parse error if the body was not empty
-      if (responseBodyText.trim() !== "") {
-        const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
-        throw new Error(
-          `Invalid JSON response received from YeePay API: ${responseBodyText}. Parse Error: ${errorMessage}`,
-        );
-      } else {
-        // If body was empty and parsing still failed (shouldn't happen with the check above),
-        // re-throw or handle differently. For now, let's assume the check prevents this.
-        console.error(
-          "[YopClient] Error parsing empty response body (unexpected).",
-        );
-        responseData = {} as T; // Fallback
-      }
-    }
+    const finalResponse: T = {
+        ...parsedResult,
+        stringResult: responseBodyText,
+        metadata: metadata,
+    };
 
-    // Optional: Centralized business error check based on YopResponse structure
-    if (responseData.state && responseData.state !== "SUCCESS") {
-      const error = responseData.error;
-      const errorMessage = `YeePay API Business Error: State=${responseData.state}, Code=${error?.code || "N/A"}, Message=${error?.message || "Unknown error"}`;
+    if (finalResponse.state && finalResponse.state !== "SUCCESS") {
+      const error = finalResponse.error;
+      const errorMessage = `YeePay API Business Error: State=${finalResponse.state}, Code=${error?.code || "N/A"}, Message=${error?.message || "Unknown error"}`;
       throw new Error(errorMessage);
     }
-    // The old check might still be relevant if 'state' isn't always present
-    // if (responseData.code && responseData.code !== 'OPR00000') { // Adjust 'OPR00000' if needed
-    //    const errorMessage = `YeePay API Business Error: Code=${responseData?.code}, Message=${responseData?.message || 'Unknown error'}`;
-    //    throw new Error(errorMessage);
-    // }
 
-    return responseData;
+    return finalResponse;
   }
 
   public async get<T extends YopResponse = YopResponse>(
     apiUrl: string,
-    params: Record<string, unknown>, // Align with YopRequestOptions
+    params: Record<string, unknown>,
     timeout?: number,
   ): Promise<T> {
     return this.request<T>({ method: "GET", apiUrl, params, timeout });
@@ -417,7 +379,7 @@ export class YopClient {
 
   public async post<T extends YopResponse = YopResponse>(
     apiUrl: string,
-    body: Record<string, unknown>, // Align with YopRequestOptions
+    body: Record<string, unknown>,
     contentType: ContentType = "application/x-www-form-urlencoded",
     timeout?: number,
   ): Promise<T> {
@@ -432,7 +394,7 @@ export class YopClient {
 
   public async postJson<T extends YopResponse = YopResponse>(
     apiUrl: string,
-    body: Record<string, unknown>, // Align with YopRequestOptions
+    body: Record<string, unknown>,
     timeout?: number,
   ): Promise<T> {
     return this.request<T>({

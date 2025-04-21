@@ -67,16 +67,16 @@ x-yop-request-id:${DOC_REQUEST_ID}`;
   it('should generate correct signature matching the official documentation example', () => {
     // 保存原始方法以便测试后恢复
     const originalUuid = RsaV3Util.uuid;
-    const originalGetAuthHeaders = RsaV3Util.getAuthHeaders;
+    const originalbuildAuthorizationHeader = RsaV3Util.buildAuthorizationHeader;
 
     try {
       // 模拟 uuid 函数
       RsaV3Util.uuid = () => DOC_REQUEST_ID;
 
       // 创建一个代理对象，拦截 formatDate 调用
-      RsaV3Util.getAuthHeaders = function(options) {
+      RsaV3Util.buildAuthorizationHeader = function(options) {
         // 在调用原始方法之前，修改时间戳生成逻辑
-        const result = originalGetAuthHeaders.call(this, options);
+        const result = originalbuildAuthorizationHeader.call(this, options);
         
         // 修改 Authorization 头中的时间戳
         if (result.Authorization) {
@@ -89,7 +89,7 @@ x-yop-request-id:${DOC_REQUEST_ID}`;
         return result;
       };
 
-      const headers = RsaV3Util.getAuthHeaders({
+      const headers = RsaV3Util.buildAuthorizationHeader({
         appKey: DOC_APP_KEY,
         secretKey: DOC_SECRET_KEY,
         method: DOC_METHOD,
@@ -128,7 +128,7 @@ x-yop-request-id:${DOC_REQUEST_ID}`;
     } finally {
       // 恢复原始函数
       RsaV3Util.uuid = originalUuid;
-      RsaV3Util.getAuthHeaders = originalGetAuthHeaders;
+      RsaV3Util.buildAuthorizationHeader = originalbuildAuthorizationHeader;
     }
   });
 

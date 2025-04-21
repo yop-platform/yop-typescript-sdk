@@ -51,7 +51,7 @@ describe('YopClient Request Handling', () => {
     'x-yop-appkey': mockConfig.appKey,
     'x-yop-request-id': 'mock-request-id',
     'x-yop-date': new Date().toISOString(),
-    'x-yop-sdk-version': '@yeepay/yop-typescript-sdk/4.0.0', // 根据实际使用的SDK版本调整
+    'x-yop-sdk-version': '@yeepay/yop-typescript-sdk/4.0.5', // 根据实际使用的SDK版本调整
     'x-yop-sdk-lang': 'nodejs',
   };
   const mockSuccessResponseData = { code: 'OPR00000', message: 'Success', result: { data: 'ok' } };
@@ -76,10 +76,10 @@ describe('YopClient Request Handling', () => {
 
   // Helper function for common spy assertions
   const expectSpiesCalled = (
-      getAuthHeadersArgs: Record<string, any>, // Use Record<string, any> instead of object
+      buildAuthorizationHeaderArgs: Record<string, any>, // Use Record<string, any> instead of object
       isValidRsaArgs?: { data: string; sign: string; publicKey: string }
   ) => {
-      expect(getAuthHeadersSpy).toHaveBeenCalledWith(expect.objectContaining(getAuthHeadersArgs));
+      expect(buildAuthorizationHeaderSpy).toHaveBeenCalledWith(expect.objectContaining(buildAuthorizationHeaderArgs));
       if (isValidRsaArgs) {
 
     // Mocks are handled by top-level jest.mock
@@ -93,7 +93,7 @@ describe('YopClient Request Handling', () => {
   let RsaV3UtilMock: any; // Keep for potential future use if needed
   let VerifyUtilsMock: any; // Keep for potential future use if needed
 
-  let getAuthHeadersSpy: any; // Revert to 'any' type
+  let buildAuthorizationHeaderSpy: any; // Revert to 'any' type
   let isValidRsaResultSpy: any; // Revert to 'any' type
 
 
@@ -104,7 +104,7 @@ describe('YopClient Request Handling', () => {
     mockSignal.aborted = false;
 
     // Use spyOn to replace the implementation
-    getAuthHeadersSpy = jest.spyOn(RsaV3UtilModule.RsaV3Util, 'getAuthHeaders')
+    buildAuthorizationHeaderSpy = jest.spyOn(RsaV3UtilModule.RsaV3Util, 'buildAuthorizationHeader')
                            .mockReturnValue(mockAuthHeaders);
     isValidRsaResultSpy = jest.spyOn(VerifyUtilsModule.VerifyUtils, 'isValidRsaResult')
                              .mockReturnValue(true);
@@ -215,7 +215,7 @@ describe('YopClient Request Handling', () => {
 
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
      
-   // getAuthHeaders *is* called before fetch, isValidRsaResult is not. `YeePay API HTTP Error: Status=500, Details=${errorText}`
+   // buildAuthorizationHeader *is* called before fetch, isValidRsaResult is not. `YeePay API HTTP Error: Status=500, Details=${errorText}`
     ); // Corrected assertion
 
     // Signature verification should not happen for HTTP errors before throwing
@@ -274,8 +274,8 @@ describe('YopClient Request Handling', () => {
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
       `Network error calling YeePay API: ${networkError.message}`
     );
-     // getAuthHeaders *is* called before fetch, isValidRsaResult is not.
-     expect(getAuthHeadersSpy).toHaveBeenCalled(); // Corrected assertion
+     // buildAuthorizationHeader *is* called before fetch, isValidRsaResult is not.
+     expect(buildAuthorizationHeaderSpy).toHaveBeenCalled(); // Corrected assertion
      expect(isValidRsaResultSpy).not.toHaveBeenCalled();
   });
 
@@ -288,8 +288,8 @@ describe('YopClient Request Handling', () => {
     await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
        /YeePay API request timed out after \d+(\.\d+)? seconds./
    );
-   // getAuthHeaders *is* called before fetch, isValidRsaResult is not.
-   expect(getAuthHeadersSpy).toHaveBeenCalled(); // Corrected assertion
+   // buildAuthorizationHeader *is* called before fetch, isValidRsaResult is not.
+   expect(buildAuthorizationHeaderSpy).toHaveBeenCalled(); // Corrected assertion
    expect(isValidRsaResultSpy).not.toHaveBeenCalled();
   });
 

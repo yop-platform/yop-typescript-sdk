@@ -2,7 +2,7 @@
 export interface YopConfig {
   appKey: string;
   secretKey: string; // 商户私钥内容 (不是路径)
-  yopPublicKey?: string; // 易宝平台公钥内容 (不是路径)
+  yopPublicKey?: string | Buffer; // 易宝平台公钥内容 (不是路径), 允许 Buffer
   yopApiBaseUrl?: string; // 可选，带默认值 'https://openapi.yeepay.com'
   // 根据需要添加其他配置，如果 YopClient 内部需要它们
   // parentMerchantNo?: string;
@@ -25,12 +25,21 @@ export interface YopError {
     solution?: string;
     [key: string]: any;
 }
+export interface YopResponseMetadata {
+    yopSign?: string | null; // 来自 x-yop-sign 响应头
+    yopRequestId?: string | null; // 来自 x-yop-request-id 响应头
+    // 可以添加其他需要的元数据字段
+    [key: string]: string | number | null | undefined;
+}
+
 export interface YopResponse {
     state: 'SUCCESS' | 'FAILURE' | string; // 包含其他可能的 state
     ts?: number;
     result?: YopResult;
     error?: YopError;
-    sign?: string; // 可能在顶层
+    sign?: string; // 可能在顶层 (保留以防万一)
+    stringResult?: string; // 添加原始响应字符串
+    metadata?: YopResponseMetadata; // 添加元数据对象
     [key: string]: any; // 允许其他字段
 }
 export interface YopErrorResponse extends YopResponse {
