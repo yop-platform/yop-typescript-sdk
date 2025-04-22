@@ -4,41 +4,42 @@ import crypto from 'crypto';
 import md5 from 'md5';
 import { AuthHeaderOptions } from './types.js';
 
-// Helper function for date formatting (replaces Date.prototype extension)
-function formatDate(date: Date, fmt: string): string {
-  const o: Record<string, number> = {
-    "M+": date.getMonth() + 1,                 // Month
-    "d+": date.getDate(),                      // Day
-    "h+": date.getHours(),                     // Hour
-    "m+": date.getMinutes(),                   // Minute
-    "s+": date.getSeconds(),                   // Second
-    "q+": Math.floor((date.getMonth() + 3) / 3), // Quarter
-    "S": date.getMilliseconds()                // Millisecond
-  };
-
-  let formatString = fmt; // Use a local variable to avoid modifying the input parameter directly
-
-  if (/(y+)/.test(formatString)) {
-    formatString = formatString.replace(RegExp.$1, (date.getFullYear() + "").substr(4 - RegExp.$1.length));
-  }
-
-  for (const k in o) {
-    if (new RegExp("(" + k + ")").test(formatString)) {
-      const value = o[k]; // Get the value once
-      formatString = formatString.replace(
-        RegExp.$1,
-        (RegExp.$1.length === 1) ?
-          (value!.toString()) : // Assert non-null, as k is a valid key of o
-          (("00" + value!).substr(("" + value!).length)) // Assert non-null here too
-      );
-    }
-  }
-
-  return formatString;
-}
-
-
 export class RsaV3Util {
+
+  // Helper function for date formatting (replaces Date.prototype extension)
+  // Made static to allow mocking in tests
+  static formatDate(date: Date, fmt: string): string {
+    const o: Record<string, number> = {
+      "M+": date.getMonth() + 1,                 // Month
+      "d+": date.getDate(),                      // Day
+      "h+": date.getHours(),                     // Hour
+      "m+": date.getMinutes(),                   // Minute
+      "s+": date.getSeconds(),                   // Second
+      "q+": Math.floor((date.getMonth() + 3) / 3), // Quarter
+      "S": date.getMilliseconds()                // Millisecond
+    };
+
+    let formatString = fmt; // Use a local variable to avoid modifying the input parameter directly
+
+    if (/(y+)/.test(formatString)) {
+      formatString = formatString.replace(RegExp.$1, (date.getFullYear() + "").substr(4 - RegExp.$1.length));
+    }
+
+    for (const k in o) {
+      if (new RegExp("(" + k + ")").test(formatString)) {
+        const value = o[k]; // Get the value once
+        formatString = formatString.replace(
+          RegExp.$1,
+          (RegExp.$1.length === 1) ?
+            (value!.toString()) : // Assert non-null, as k is a valid key of o
+            (("00" + value!).substr(("" + value!).length)) // Assert non-null here too
+        );
+      }
+    }
+
+    return formatString;
+  }
+
   /**
    * Gets authentication headers for API requests
    * @param options - Options for generating auth headers
@@ -50,7 +51,7 @@ export class RsaV3Util {
     // 修复：移除对 application/json 类型参数的额外处理
     // JSON 字符串应该保持原样，不应该对每个字段进行 normalize 处理
 
-    const timestamp = formatDate(new Date(), "yyyy-MM-ddThh:mm:ssZ");
+    const timestamp = RsaV3Util.formatDate(new Date(), "yyyy-MM-ddThh:mm:ssZ"); // Call static method
     const authString = 'yop-auth-v3/' + appKey + "/" + timestamp + "/1800";
     const HTTPRequestMethod = method;
     const CanonicalURI = url;
@@ -85,6 +86,13 @@ export class RsaV3Util {
       // Authorization header will be added after signing
     };
 
+
+    // DEBUG: Log the canonical request before signing
+    console.log("--- Canonical Request (getAuthHeaders) ---");
+    console.log(CanonicalRequest);
+    console.log("--- Canonical Header String (getAuthHeaders) ---");
+    console.log(canonicalHeaderString);
+    console.log("--- End Canonical Request ---");
 
     // 使用提取的sign方法生成签名
     const signToBase64 = this.sign(CanonicalRequest, secretKey);

@@ -1,8 +1,5 @@
 import dotenv from 'dotenv';
-import fs from 'fs'; // Import fs for reading public key file
-import path, { dirname } from 'path'; // Import path and dirname
-import { fileURLToPath } from 'url'; // Import fileURLToPath
-import { jest, describe, beforeAll, it, expect } from '@jest/globals'; // Re-add explicit Jest globals import
+import { jest, describe, beforeAll, it, expect } from '@jest/globals';
 import { YopClient } from '../src/YopClient';
 import { YopConfig } from '../src/types'; // Added YopConfig import and adjusted path
 import { getUniqueId } from '../src/utils/GetUniqueId';
@@ -25,16 +22,11 @@ describe('YopClient Integration Test for /rest/v1.0/aggpay/pre-pay', () => {
       }
     }
 
-    // Read public key file
-    const __filename = fileURLToPath(import.meta.url);
-    const currentDir = dirname(__filename);
-    const publicKeyPath = path.resolve(currentDir, '..', process.env.YOP_PUBLIC_KEY_PATH || 'src/assets/yop_platform_rsa_cert_rsa.pem'); // Use currentDir instead of __dirname
-    let yopPublicKey: string;
-    try {
-      yopPublicKey = fs.readFileSync(publicKeyPath, 'utf-8');
-    } catch (error) {
-      throw new Error(`Failed to read YOP public key file at ${publicKeyPath}: ${error}`);
+    // Get YOP public key from environment variable
+    if (!process.env.YOP_PUBLIC_KEY) {
+      throw new Error('Missing YOP_PUBLIC_KEY environment variable for integration test.');
     }
+    const yopPublicKey = process.env.YOP_PUBLIC_KEY;
 
 
     // Create real config object
@@ -55,23 +47,19 @@ describe('YopClient Integration Test for /rest/v1.0/aggpay/pre-pay', () => {
 
   // 暂时跳过集成测试，因为私钥格式问题需要进一步解决
   // 我们已经修复了中文字符的签名验证问题，单元测试已经通过
-  it.skip('should successfully call the pre-pay endpoint and receive a valid response structure', async () => {
+  it('should successfully call the pre-pay endpoint and receive a valid response structure', async () => {
     // 准备测试数据 using process.env
     const testData = {
       parentMerchantNo: process.env.YOP_PARENT_MERCHANT_NO!,
       merchantNo: process.env.YOP_MERCHANT_NO!,
-      orderId: `INTEGRATION_${getUniqueId(10)}`, // Use imported getUniqueId
-      orderAmount: '0.01', // 使用最小金额进行测试
+      orderId: `INTEGRATION_${getUniqueId(10)}`,
+      orderAmount: '0.01',
       goodsName: 'Integration Test Product',
       notifyUrl: process.env.YOP_NOTIFY_URL!,
-      // redirectUrl: 'YOUR_REDIRECT_URL', // 可选，根据需要添加
       memo: 'Integration test call',
-      userIp: '127.0.0.1', // 使用本地 IP 或测试环境 IP
-      payWay: 'USER_SCAN', // 添加必要的 payWay 参数
-      channel: 'ONLINE', // 添加必要的 channel 参数
-      // 根据实际接口要求可能需要更多字段，例如支付工具、用户标识等
-      // userNo: 'TEST_USER_123',
-      // appId: 'YOUR_APP_ID' // 如果是小程序/公众号支付可能需要
+      userIp: '127.0.0.1',
+      payWay: 'USER_SCAN',
+      channel: 'ONLINE',
     };
 
     let responseData: any;
@@ -123,17 +111,5 @@ describe('YopClient Integration Test for /rest/v1.0/aggpay/pre-pay', () => {
         // Test passes if requestError is null and responseData is defined (even if empty)
     }
 
-
-    // 可选：如果环境配置允许成功下单，可以添加更具体的断言
-    // 注意：这取决于测试环境的易宝配置是否允许实际扣款或模拟成功
-    // if (responseData.code === 'OPR00000') {
-    //   expect(responseData.result).toHaveProperty('uniqueOrderNo'); // 易宝订单号
-    //   expect(responseData.result).toHaveProperty('token'); // 支付令牌或 URL
-    //   // ... 其他关键字段
-    // } else {
-    //   // 如果预期失败（例如配置问题、重复订单等），可以检查特定的错误码
-    //   console.warn(`Pre-pay request completed with code: ${responseData.code}, message: ${responseData.message}`);
-    //   // expect(responseData.code).toBe('SOME_EXPECTED_ERROR_CODE');
-    // }
   });
 });
