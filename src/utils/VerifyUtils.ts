@@ -141,46 +141,12 @@ export class VerifyUtils {
   static isValidRsaResult(params: VerifyParams): boolean {
     try {
       let sign = params.sign.replace('$SHA256', '');
-      const fullResponseBody = params.data ?? "";
-      let dataToVerify : string; // String used for verification
-
-      // 1. Parse the full response body and extract the 'result' field's string representation
-      try {
-          const parsedResponse = JSON.parse(fullResponseBody);
-          if (typeof parsedResponse === 'object' && parsedResponse !== null && 'result' in parsedResponse) {
-              const resultField = parsedResponse.result;
-              // Stringify the result field for verification
-              // NOTE: Simple JSON.stringify might not be canonical if key order matters.
-              // YOP Java SDK might use a specific canonical JSON stringifier.
-              // If this fails, a more robust canonical JSON stringification might be needed.
-              if (typeof resultField === 'string') {
-                  dataToVerify = resultField; // Use directly if result is already a string
-              } else if (resultField === null || resultField === undefined) {
-                  dataToVerify = ""; // Use empty string if result is null/undefined
-              }
-              else {
-                  dataToVerify = JSON.stringify(resultField); // Stringify if object/array/etc.
-              }
-              console.info("[VerifyUtils] Verifying signature against 'result' field string:", dataToVerify);
-          } else {
-              console.warn("[VerifyUtils] 'result' field not found in the parsed response body. Verifying against full body as fallback.");
-              dataToVerify = fullResponseBody; // Fallback to full body if 'result' not found
-          }
-      } catch (e) {
-          console.error("[VerifyUtils] Failed to parse response body as JSON for verification.", e);
-          return false; // Cannot verify if JSON parsing fails
-      }
-
-      // 2. Get the public key object
-      let publicKeyObject: crypto.KeyObject;
-      try {
-        const keyInput = (typeof params.publicKey === 'object' && 'export' in params.publicKey)
-                         ? params.publicKey.export({format: 'pem', type: 'spki'})
-                         : params.publicKey;
-        publicKeyObject = this.getPublicKeyObject(keyInput as string | Buffer);
-      } catch (error) {
-        return false;
-      }
+      console.info(`typeof params: ${params.data}`);
+      let dataToVerify = JSON.stringify(JSON.parse(params.data).result);
+      dataToVerify = dataToVerify.replace(/[\s]{2,}/g, "");
+      dataToVerify = dataToVerify.replace(/\n/g, "");
+      dataToVerify = dataToVerify.replace(/[\s]/g, "");
+      console.info(`typeof dataToVerify: ${dataToVerify}`);
 
       // 3. Perform verification
       let verify = crypto.createVerify('RSA-SHA256');
@@ -189,29 +155,11 @@ export class VerifyUtils {
       sign = sign.replace(/[-]/g, '+');
       sign = sign.replace(/[_]/g, '/');
 
-      let res = verify.verify(publicKeyObject, sign, 'base64');
-
-      if (!res) {
-          console.warn("[VerifyUtils] RSA Result Verification Failed. Data verified:", dataToVerify);
-          console.warn("[VerifyUtils] Signature:", sign);
-          // console.warn("[VerifyUtils] Public Key used:", publicKeyObject.export({format:'pem', type:'spki'})); // Uncomment for deep debug
-      }
-
-      return res;
+      return verify.verify(params.publicKey, sign, 'base64');
     } catch (error) {
       console.error(`Error during RSA result verification: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
-  }
-
-  /**
-   * Extracts result from response string (Potentially deprecated or needs context)
-   * @param str - Response string
-   * @returns Extracted result
-   */
-  static getResult(str: string): string {
-    const match = str.match(/"result"\s*:\s*({.*}),\s*"ts"/s);
-    return match ? (match[1] ?? '') : '';
   }
 
   /**

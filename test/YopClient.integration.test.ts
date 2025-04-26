@@ -35,81 +35,91 @@ describe('YopClient Integration Test for /rest/v1.0/aggpay/pre-pay', () => {
       appPrivateKey: process.env.YOP_APP_PRIVATE_KEY!, // Secret key is needed for YopClient now
       yopApiBaseUrl: process.env.YOP_API_BASE_URL || 'https://openapi.yeepay.com',
       yopPublicKey: yopPublicKey,
-      // merchantNo: process.env.YOP_MERCHANT_NO!, // Removed: merchantNo is a request parameter, not client config
-      // Add other necessary fields from .env if YopConfig requires them
-      // parentMerchantNo: process.env.YOP_PARENT_MERCHANT_NO!, // Assuming YopConfig doesn't need this directly
-      // timeout: parseInt(process.env.YOP_TIMEOUT || '30000', 10), // Removed: Timeout might be a per-request option now
     };
 
     // Instantiate YopClient with real config
     yopClient = new YopClient(realConfig);
   });
 
-  // 暂时跳过集成测试，因为私钥格式问题需要进一步解决
-  // 我们已经修复了中文字符的签名验证问题，单元测试已经通过
-  it('should successfully call the pre-pay endpoint and receive a valid response structure', async () => {
-    // 准备测试数据 using process.env
-    const testData = {
+  it('should successfully call the query-order endpoint after pre-pay', async () => {
+    // 1. Call pre-pay to get an orderId
+    const prePayTestData = {
       parentMerchantNo: process.env.YOP_PARENT_MERCHANT_NO!,
       merchantNo: process.env.YOP_MERCHANT_NO!,
-      orderId: `INTEGRATION_${getUniqueId(10)}`,
+      orderId: `INTEGRATION_QUERY_${getUniqueId(10)}`, // Use a different orderId for this test
       orderAmount: '0.01',
-      goodsName: 'Integration Test Product',
+      goodsName: 'Integration Test Product for Query',
       notifyUrl: process.env.YOP_NOTIFY_URL!,
-      memo: 'Integration test call',
+      memo: 'Integration test call for query',
       userIp: '127.0.0.1',
-      payWay: 'USER_SCAN',
-      channel: 'ONLINE',
+      payWay: 'USER_SCAN', // Keep these parameters consistent with the first test
+      channel: 'WECHAT',
+      scene: 'ONLINE'
     };
 
-    let responseData: any;
-    let requestError: any = null;
+    let prePayResponseData: any;
+    let prePayRequestError: any = null;
 
     try {
-      responseData = await yopClient.post('/rest/v1.0/aggpay/pre-pay', testData);
+      prePayResponseData = await yopClient.post('/rest/v1.0/aggpay/pre-pay', prePayTestData);
     } catch (error) {
-      console.error('Error calling pre-pay endpoint:', error);
-      requestError = error;
+      console.error('Error calling pre-pay endpoint for query test:', error);
+      prePayRequestError = error;
     }
 
-    // 断言请求没有抛出错误
-    expect(requestError).toBeNull();
+    // Assert pre-pay was successful enough to get an orderId (or at least a response)
+    expect(prePayRequestError).toBeNull();
+    expect(prePayResponseData).toBeDefined();
+    // Assuming a successful pre-pay response structure includes state and result/error
+    expect(prePayResponseData).toHaveProperty('result');
+    expect(prePayResponseData.result).toHaveProperty('prePayTn');
 
-    // 断言响应数据结构
-    expect(responseData).toBeDefined();
-
-    // Check if responseData is not an empty object before asserting properties
-    if (responseData && Object.keys(responseData).length > 0) {
-        expect(responseData).toHaveProperty('state'); // Check for 'state' property
-        expect(responseData).toHaveProperty('result'); // Check for 'result' property
-
-        // 如果 state 是 SUCCESS，检查 result 里的 code 和 message
-        if (responseData.state === 'SUCCESS') {
-          expect(responseData.result).toHaveProperty('code');
-          expect(responseData.result).toHaveProperty('message');
-          // 根据实际情况，如果预期成功，可以断言 result.code 为 'OPR00000'
-          // expect(responseData.result.code).toBe('OPR00000');
-          // 如果预期业务失败（如当前情况），可以记录或断言特定的业务错误码
-          console.warn(`API returned SUCCESS state but with business error: code=${responseData.result.code}, message=${responseData.result.message}`);
-          // 对于当前 "支付方式传值有误" 的情况，我们暂时接受这个业务错误，让测试通过结构检查
-          // 如果需要严格测试成功场景，需要修复 payWay/channel 参数并取消下面的注释
-          // expect(responseData.result.code).toBe('OPR00000');
-        } else if (responseData.state === 'FAILURE') {
-          // 如果 state 是 FAILURE，检查 error 里的 code 和 message
-          expect(responseData).toHaveProperty('error');
-          expect(responseData.error).toHaveProperty('code');
-          expect(responseData.error).toHaveProperty('message');
-          console.error(`API returned FAILURE state: code=${responseData.error.code}, message=${responseData.error.message}`);
-          // 可以根据需要断言特定的失败代码
-        } else {
-          // 处理未知的 state 值
-          throw new Error(`Received unexpected state from API: ${responseData.state}`);
-        }
+    // Extract orderId from pre-pay response if successful
+    let orderIdToQuery: string | undefined;
+    if (prePayResponseData.state === 'SUCCESS' && prePayResponseData.result && prePayResponseData.result.code === 'OPR00000') {
+        // If pre-pay was truly successful (OPR00000), use the generated orderId
+        orderIdToQuery = prePayTestData.orderId; // Use the orderId we sent
+        console.log(`Pre-pay successful for query test, orderId: ${orderIdToQuery}`);
     } else {
-        // Handle the case where responseData is an empty object (due to empty API response)
-        console.warn('Integration test received an empty response object, skipping detailed property checks.');
-        // Test passes if requestError is null and responseData is defined (even if empty)
+        // If pre-pay failed (e.g., business error like invalid payWay), we might not have a valid order to query.
+        // For this test, we'll proceed with the orderId we attempted to create,
+        // but the query test might then assert a "order not found" or similar error.
+        // Alternatively, we could skip the query test if pre-pay fails with a business error.
+        // Let's proceed with the orderId we sent, and expect the query to reflect the pre-pay outcome.
+        orderIdToQuery = prePayTestData.orderId;
+        console.warn(`Pre-pay failed or had business error for query test (state: ${prePayResponseData.state}, code: ${prePayResponseData.result?.code || prePayResponseData.error?.code}), attempting query with orderId: ${orderIdToQuery}`);
     }
 
+    // Ensure we have an orderId to query
+    expect(orderIdToQuery).toBeDefined();
+
+    // 2. Call query-order endpoint
+    const queryTestData = {
+      parentMerchantNo: process.env.YOP_PARENT_MERCHANT_NO!,
+      merchantNo: process.env.YOP_MERCHANT_NO!,
+      orderId: orderIdToQuery!, // Use the orderId from the pre-pay step
+    };
+
+    let queryResponseData: any;
+    let queryRequestError: any = null;
+
+    try {
+      queryResponseData = await yopClient.get('/rest/v1.0/trade/order/query', queryTestData);
+    } catch (error) {
+      console.error('Error calling query-order endpoint:', error);
+      queryRequestError = error;
+    }
+
+    // 3. Verify the result of the order query call
+    expect(queryRequestError).toBeNull();
+    expect(queryResponseData).toBeDefined();
+
+    // Assert response data structure for query
+    if (queryResponseData && Object.keys(queryResponseData).length > 0) {
+        expect(queryResponseData).toHaveProperty('result'); // Query response should have 'result' even on business failure
+        expect(queryResponseData.result).toHaveProperty('status');
+    } else {
+        console.warn('Query test received an empty response object, skipping detailed property checks.');
+    }
   });
 });

@@ -81,7 +81,7 @@ export class RsaV3Util {
     // Prepare all headers for the actual HTTP request
     const allHeaders: Record<string, string> = {
       ...headersToSign, // Include signed headers
-      'x-yop-sdk-version': '0.2.5', // 根据实际使用的SDK版本调整
+      'x-yop-sdk-version': '4.0.12', // 根据实际使用的SDK版本调整
       'x-yop-sdk-lang': '@yeepay/yop-typescript-sdk',
       // Authorization header will be added after signing
     };
