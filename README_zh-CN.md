@@ -85,7 +85,7 @@ pnpm add @yeepay/yop-typescript-sdk
     // 显式准备配置对象
     const yopConfig: YopConfig = {
       appKey: process.env.MY_CUSTOM_APP_KEY || 'defaultAppKey', // 示例：使用不同的环境变量或默认值
-      secretKey: process.env.MY_SECRET_KEY!, // 示例：从特定变量获取
+      appPrivateKey: process.env.MY_SECRET_KEY!, // 示例：从特定变量获取
       yopPublicKey: process.env.YOP_PUBLIC_KEY!, // 如果需要，仍可从标准环境变量加载
       // yeepayApiBaseUrl: 'https://sandbox.yeepay.com' // 示例：覆盖基础 URL
     };
@@ -101,7 +101,7 @@ pnpm add @yeepay/yop-typescript-sdk
 当您向 `YopClient` 构造函数传递配置对象时，将使用这些选项。如果对象中省略了某个选项，SDK 将尝试回退到相应的环境变量。
 
 - `appKey` (string, 必需): 您的唯一应用标识符，由易宝提供。（回退到 `process.env.YOP_APP_KEY`）。
-- `secretKey` (string, 必需): 您应用的私钥（PEM 格式的原始字符串）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**（回退到 `process.env.YOP_APP_PRIVATE_KEY`）。
+- `appPrivateKey` (string, 必需): 您应用的私钥（PEM 格式的原始字符串）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**（回退到 `process.env.YOP_APP_PRIVATE_KEY`）。
 - `yopPublicKey` (string, 必需): 用于验证响应的易宝平台公钥（PEM 格式的原始字符串）。这必须是密钥*内容*，而不是文件路径。（回退到 `process.env.YOP_PUBLIC_KEY`）。
 - `yeepayApiBaseUrl` (string, 可选): 易宝 API 的基础 URL。（回退到 `process.env.YOP_API_BASE_URL`，然后默认为 `https://openapi.yeepay.com`）。
 

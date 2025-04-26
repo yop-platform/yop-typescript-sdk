@@ -8,7 +8,7 @@ import type {
   YopResponse,
   YopResponseMetadata, // Import YopResponseMetadata
 } from "./types.js"; // Restore .js extension
-import fetch, { Headers, RequestInit, Response } from 'node-fetch'; // Import fetch types
+// 使用原生 fetch API，不需要额外导入
 import crypto from 'crypto'; // Import crypto for KeyObject type hint
 
 /**
@@ -45,14 +45,14 @@ export class YopClient {
    * Returns the configuration containing the public key as string or Buffer.
    * @param config Optional configuration object provided during instantiation.
    * @returns The validated and merged YopConfig with publicKey as string/Buffer.
-   * @throws Error if required configuration fields (appKey, secretKey) are missing or if public key loading fails definitively.
+   * @throws Error if required configuration fields (appKey, appPrivateKey) are missing or if public key loading fails definitively.
    */
   private _loadConfig(config?: YopConfig): YopConfig & { yopPublicKey: string | Buffer } { // Ensure return type includes yopPublicKey
     const defaultBaseUrl = "https://openapi.yeepay.com";
 
     const envBaseUrl = process.env.YOP_API_BASE_URL;
     const envAppKey = process.env.YOP_APP_KEY;
-    const envSecretKey = process.env.YOP_APP_PRIVATE_KEY;
+    const envAppPrivateKey = process.env.YOP_APP_PRIVATE_KEY;
     const envYopPublicKey = process.env.YOP_PUBLIC_KEY; // Key as string
 
     let finalConfig: Partial<YopConfig> = {};
@@ -67,7 +67,7 @@ export class YopClient {
       }
     } else {
       finalConfig.appKey = envAppKey;
-      finalConfig.secretKey = envSecretKey;
+      finalConfig.appPrivateKey = envAppPrivateKey;
       finalConfig.yopApiBaseUrl = envBaseUrl ?? defaultBaseUrl;
     }
 
@@ -86,9 +86,9 @@ export class YopClient {
         : "Missing required configuration: YOP_APP_KEY environment variable is not set";
       throw new Error(errorMsg);
     }
-    if (!finalConfig.secretKey) {
+    if (!finalConfig.appPrivateKey) {
       const errorMsg = config
-        ? "Missing required configuration: secretKey is missing in the provided config object"
+        ? "Missing required configuration: appPrivateKey is missing in the provided config object"
         : "Missing required configuration: YOP_APP_PRIVATE_KEY environment variable is not set";
       throw new Error(errorMsg);
     }
@@ -106,7 +106,7 @@ export class YopClient {
     const { method, apiUrl, params, body } = options;
     const {
       appKey,
-      secretKey,
+      appPrivateKey: appPrivateKey,
       yopApiBaseUrl,
     } = this.config;
     // Use the stored KeyObject for verification
@@ -137,7 +137,7 @@ export class YopClient {
       try {
         sdkHeaders = RsaV3Util.getAuthHeaders({
           appKey,
-          secretKey,
+          appPrivateKey: appPrivateKey,
           method: "GET",
           url: apiUrl,
           params: params,
@@ -153,7 +153,7 @@ export class YopClient {
       try {
         sdkHeaders = RsaV3Util.getAuthHeaders({
           appKey,
-          secretKey,
+          appPrivateKey: appPrivateKey,
           method: "POST",
           url: apiUrl,
           params: body,
@@ -180,7 +180,7 @@ export class YopClient {
        try {
         sdkHeaders = RsaV3Util.getAuthHeaders({
           appKey,
-          secretKey,
+          appPrivateKey: appPrivateKey,
           method: "GET",
           url: apiUrl,
           config: { contentType },
@@ -212,9 +212,9 @@ export class YopClient {
 
     // 检测是否在测试环境中
     const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
-    
+
     let timeoutId: NodeJS.Timeout | undefined;
-    
+
     // 只在非测试环境中使用 AbortController
     if (!isTestEnvironment) {
       const controller = new AbortController();
@@ -223,7 +223,7 @@ export class YopClient {
     }
 
     let response: Response;
-    
+
     // 在所有环境中，正常发送请求
     try {
       console.info(`[YopClient] fetch URL: ${fullFetchUrl.toString()}`);
@@ -287,13 +287,13 @@ export class YopClient {
     if (signatureToVerify) {
       // 检测是否在测试环境中
       const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
-      
+
       const isValid = VerifyUtils.isValidRsaResult({ // Use isValidRsaResult
         data: responseBodyText,
         sign: signatureToVerify,
         publicKey: yopPublicKeyObject, // Pass the KeyObject
       });
-      
+
       if (!isValid && !isTestEnvironment) {
         console.error("[YopClient] Response signature verification failed!");
         console.error("[YopClient] Response Body:", responseBodyText);

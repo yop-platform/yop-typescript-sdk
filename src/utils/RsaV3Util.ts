@@ -46,7 +46,7 @@ export class RsaV3Util {
    * @returns Authentication headers
    */
   static getAuthHeaders(options: AuthHeaderOptions): Record<string, string> {
-    const { appKey, method, url, params = {}, secretKey, config = { contentType: ''} } = options;
+    const { appKey, method, url, params = {}, appPrivateKey: appPrivateKey, config = { contentType: ''} } = options;
 
     // 修复：移除对 application/json 类型参数的额外处理
     // JSON 字符串应该保持原样，不应该对每个字段进行 normalize 处理
@@ -95,7 +95,7 @@ export class RsaV3Util {
     console.log("--- End Canonical Request ---");
 
     // 使用提取的sign方法生成签名
-    const signToBase64 = this.sign(CanonicalRequest, secretKey);
+    const signToBase64 = this.sign(CanonicalRequest, appPrivateKey);
 
     // Construct auth header using the correctly generated signedHeadersString
     allHeaders.Authorization = "YOP-RSA2048-SHA256 " + authString + "/" +
@@ -296,14 +296,14 @@ export class RsaV3Util {
   /**
    * Signs a canonical request string using RSA-SHA256
    * @param canonicalRequest - The canonical request string to sign
-   * @param secretKey - The private key to sign with (PEM format or raw)
+   * @param appPrivateKey - The private key to sign with (PEM format or raw)
    * @returns Base64 URL-safe signature with $SHA256 suffix
    */
-  static sign(canonicalRequest: string, secretKey: string): string {
-    // Check if secretKey is already in PEM format
-    const private_key = secretKey.includes('-----BEGIN PRIVATE KEY-----')
-      ? secretKey
-      : this.formatPrivateKey(secretKey);
+  static sign(canonicalRequest: string, appPrivateKey: string): string {
+    // Check if appPrivateKey is already in PEM format
+    const private_key = appPrivateKey.includes('-----BEGIN PRIVATE KEY-----')
+      ? appPrivateKey
+      : this.formatPrivateKey(appPrivateKey);
 
     const signer = crypto.createSign('RSA-SHA256');
     signer.update(canonicalRequest, 'utf8');

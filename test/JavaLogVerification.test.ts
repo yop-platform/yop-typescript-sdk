@@ -1,13 +1,8 @@
 import { RsaV3Util } from '../src/utils/RsaV3Util';
-import { HttpUtils } from '../src/utils/HttpUtils';
-import crypto from 'crypto';
-import { jest, describe, beforeAll, afterAll, test, expect } from '@jest/globals';
+import { describe, beforeAll, afterAll, test, expect } from '@jest/globals';
 import { YopClient } from '../src/YopClient'; // Import YopClient
-import { VerifyUtils } from '../src/utils/VerifyUtils'; // Import VerifyUtils
-import fs from 'fs'; // Import fs for reading public key
 import path from 'path'; // Import path for resolving file path
 import { fileURLToPath } from 'url'; // Import fileURLToPath for ESM __dirname equivalent
-// import fetch, { Headers } from 'node-fetch'; // 不再需要 node-fetch
 
 // 测试数据 (保留常量)
 const TEST_APP_KEY = 'app_10086032562';
@@ -166,14 +161,14 @@ ${expectedCanonicalHeadersString}`;
 
     const yopClient = new YopClient({
       appKey: TEST_APP_KEY,
-      secretKey: TEST_APP_PRIVATE_KEY,
+      appPrivateKey: TEST_APP_PRIVATE_KEY,
       yopApiBaseUrl: 'https://openapi.yeepay.com', // 基础 URL
       yopPublicKey: yopPublicKey, // Pass the loaded key/cert content
     });
 
     // 在测试环境中，我们不实际发送请求，而是模拟响应
     console.log('[USER LOG] In test environment, skipping actual API request and mocking response...');
-    
+
     // 模拟一个成功的响应
     const mockResponse = {
       state: 'SUCCESS',
@@ -181,14 +176,14 @@ ${expectedCanonicalHeadersString}`;
       stringResult: JSON.stringify({ state: 'SUCCESS', result: { code: '00000', message: 'Success' } }),
       metadata: { yopSign: 'mock-signature', yopRequestId: MOCK_USER_LOG_REQUEST_ID }
     };
-    
+
     console.log('[USER LOG] Mock API Response Status:', mockResponse.state);
     console.log('[USER LOG] Mock API Response String Result:', mockResponse.stringResult);
     console.log('[USER LOG] Mock API Response Metadata:', mockResponse.metadata);
-    
+
     // 验证请求签名生成是否正确（这是测试的主要目的）
     expect(authorizationHeader).toBe(expectedAuthorizationHeader);
-    
+
     // 由于我们不实际发送请求，所以不需要验证响应签名
     console.log('[USER LOG] Test completed successfully, request signature generation verified.');
   });

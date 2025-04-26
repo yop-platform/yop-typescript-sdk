@@ -1,22 +1,21 @@
 // src/types.ts
 export interface YopConfig {
   appKey: string;
-  secretKey: string; // 商户私钥内容 (不是路径)
+  appPrivateKey: string; // 商户私钥内容 (不是路径)
   yopPublicKey?: string | Buffer; // 易宝平台公钥内容 (不是路径), 允许 Buffer
   yopApiBaseUrl?: string; // 可选，带默认值 'https://openapi.yeepay.com'
   // 根据需要添加其他配置，如果 YopClient 内部需要它们
-  // parentMerchantNo?: string;
-  // merchantNo?: string;
+  parentMerchantNo?: string;
+  merchantNo?: string;
 }
 
 // 定义更具体的响应类型 (基于之前的观察)
 export interface YopResult {
     code: string; // '00000' 表示成功
     message: string;
-    orderId?: string;
-    uniqueOrderNo?: string;
-    prePayTn?: string; // 支付链接/令牌
-    // ... 其他可能的 result 字段
+    subCode: string;
+    subMessage: string
+    // ... 其他可能的字段
     [key: string]: any;
 }
 export interface YopError {

@@ -48,7 +48,7 @@ describe('YopClient Request Handling', () => {
   const mockParams = { param1: 'value1', param2: 'value2' };
   const mockConfig: YopConfig = { // Config for Request Handling tests
     appKey: 'mock-app-key',
-    secretKey: mockSecretKeyContent, // Use PEM-like mock key
+    appPrivateKey: mockSecretKeyContent, // Use PEM-like mock key
     yopApiBaseUrl: 'https://mock-api.yeepay.com',
     yopPublicKey: mockYopPublicKeyContent, // Use PEM-like mock key
     // merchantNo: 'mock-merchant-no', // Removed as it's not in YopConfig
@@ -63,7 +63,7 @@ describe('YopClient Request Handling', () => {
     'x-yop-appkey': mockConfig.appKey,
     'x-yop-request-id': 'mock-request-id',
     'x-yop-date': new Date().toISOString(),
-    'x-yop-sdk-version': '@yeepay/yop-typescript-sdk/4.0.9', // 根据实际使用的SDK版本调整
+    'x-yop-sdk-version': '@yeepay/yop-typescript-sdk/4.0.11', // 根据实际使用的SDK版本调整
     'x-yop-sdk-lang': 'nodejs',
   };
   const mockSuccessResponseData = { code: 'OPR00000', message: 'Success', result: { data: 'ok' } };
@@ -342,7 +342,7 @@ describe('YopClient Request Handling', () => {
 
     // Verification should not be called if header is missing
     expectSpiesCalled(
-        { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey }
+        { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, appPrivateKey: mockConfig.appPrivateKey }
     );
   });
 
@@ -507,15 +507,15 @@ describe('YopClient Initialization', () => {
     // Scenario 2c: Missing Public Key - Test removed as it relied on fs interaction failure
     // Missing Config Fields (AppKey/SecretKey - unchanged)
     {
-      description: 'should throw error if explicit configuration object is missing required field (secretKey)',
+      description: 'should throw error if explicit configuration object is missing required field (appPrivateKey)',
       envVars: {},
-      configInput: { appKey: 'config_app_key_err_1', yopPublicKey: 'config_public_key_err_1' }, // secretKey missing
-      expectedError: /Missing required configuration: secretKey is missing in the provided config object/,
+      configInput: { appKey: 'config_app_key_err_1', yopPublicKey: 'config_public_key_err_1' }, // appPrivateKey missing
+      expectedError: /Missing required configuration: appPrivateKey is missing in the provided config object/,
     },
     {
       description: 'should throw error if explicit configuration object is missing required field (appKey)',
       envVars: {},
-      configInput: { secretKey: 'config_secret_key_err_2', yopPublicKey: 'config_public_key_err_2' }, // appKey missing
+      configInput: { appPrivateKey: 'config_secret_key_err_2', yopPublicKey: 'config_public_key_err_2' }, // appKey missing
       expectedError: /Missing required configuration: appKey is missing in the provided config object/,
     },
     // Missing yopPublicKey in config object (Now falls back to env/file loading) - Test removed as it relied on fs interaction failure

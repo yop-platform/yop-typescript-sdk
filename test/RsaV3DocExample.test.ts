@@ -1,6 +1,5 @@
 import RsaV3Util from '../src/utils/RsaV3Util'; // Use default import
 import { HttpUtils } from '../src/utils/HttpUtils';
-import { jest } from '@jest/globals'; // Import jest
 
 describe('RsaV3Util - Documentation Example Verification', () => {
   // 文档中的示例数据
@@ -88,7 +87,7 @@ ${expectedCanonicalHeadersPart}`; // Use the correctly built headers part
       // Call the actual getAuthHeaders method
       const headers = RsaV3Util.getAuthHeaders({
         appKey: DOC_APP_KEY,
-        secretKey: DOC_SECRET_KEY,
+        appPrivateKey: DOC_SECRET_KEY,
         method: DOC_METHOD,
         url: DOC_URL,
         params: DOC_PARAMS,

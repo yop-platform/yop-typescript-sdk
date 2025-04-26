@@ -85,7 +85,7 @@ The `YopClient` can be configured in two ways:
     // Prepare the configuration object explicitly
     const yopConfig: YopConfig = {
       appKey: process.env.MY_CUSTOM_APP_KEY || 'defaultAppKey', // Example: Using different env var or default
-      secretKey: process.env.MY_SECRET_KEY!, // Example: Sourcing from a specific variable
+      appPrivateKey: process.env.MY_SECRET_KEY!, // Example: Sourcing from a specific variable
       yopPublicKey: process.env.YOP_PUBLIC_KEY!, // Can still load from standard env var if desired
       // yeepayApiBaseUrl: 'https://sandbox.yeepay.com' // Example: Overriding the base URL
     };
@@ -101,7 +101,7 @@ The `YopClient` can be configured in two ways:
 These options are used when you pass a configuration object to the `YopClient` constructor. If an option is omitted from the object, the SDK will attempt to fall back to the corresponding environment variable.
 
 - `appKey` (string, required): Your unique application identifier provided by YeePay. (Falls back to `process.env.YOP_APP_KEY`).
-- `secretKey` (string, required): Your application's private key (in PEM format, as a raw string). The SDK will automatically format the key if it's not already in PEM format. **Keep this secure!** (Falls back to `process.env.YOP_APP_PRIVATE_KEY`).
+- `appPrivateKey` (string, required): Your application's private key (in PEM format, as a raw string). The SDK will automatically format the key if it's not already in PEM format. **Keep this secure!** (Falls back to `process.env.YOP_APP_PRIVATE_KEY`).
 - `yopPublicKey` (string, required): The YeePay platform's public key (in PEM format, as a raw string) used to verify responses. This must be the key *content*, not a file path. (Falls back to `process.env.YOP_PUBLIC_KEY`).
 - `yeepayApiBaseUrl` (string, optional): The base URL for the YeePay API. (Falls back to `process.env.YOP_API_BASE_URL`, then defaults to `https://openapi.yeepay.com`).
 

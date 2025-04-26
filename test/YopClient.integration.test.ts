@@ -32,7 +32,7 @@ describe('YopClient Integration Test for /rest/v1.0/aggpay/pre-pay', () => {
     // Create real config object
     const realConfig: YopConfig = {
       appKey: process.env.YOP_APP_KEY!,
-      secretKey: process.env.YOP_APP_PRIVATE_KEY!, // Secret key is needed for YopClient now
+      appPrivateKey: process.env.YOP_APP_PRIVATE_KEY!, // Secret key is needed for YopClient now
       yopApiBaseUrl: process.env.YOP_API_BASE_URL || 'https://openapi.yeepay.com',
       yopPublicKey: yopPublicKey,
       // merchantNo: process.env.YOP_MERCHANT_NO!, // Removed: merchantNo is a request parameter, not client config

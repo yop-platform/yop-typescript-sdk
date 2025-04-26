@@ -417,7 +417,7 @@ describe('RsaV3Util', () => {
       it(`should generate correct auth headers structure for ${tc.name}`, () => {
         const headers = RsaV3Util.getAuthHeaders({ // Use getAuthHeaders
           appKey: TEST_APP_KEY,
-          secretKey: TEST_APP_PRIVATE_KEY,
+          appPrivateKey: TEST_APP_PRIVATE_KEY,
           method: tc.method,
           url: TEST_URL,
           params: tc.params,
@@ -542,7 +542,7 @@ rCcNrf36RzK+PLLPq/uPAaY=
 
             const headers = RsaV3Util.getAuthHeaders({ // Use getAuthHeaders
                 appKey: DOC_APP_KEY,
-                secretKey: DOC_SECRET_KEY,
+                appPrivateKey: DOC_SECRET_KEY,
                 method: DOC_METHOD,
                 url: DOC_URL,
                 params: DOC_PARAMS,
@@ -626,7 +626,7 @@ rCcNrf36RzK+PLLPq/uPAaY=
       // 构建与 buildAuthorizationHeader 相同的输入
       const options = {
         appKey: TEST_APP_KEY,
-        secretKey: TEST_APP_PRIVATE_KEY,
+        appPrivateKey: TEST_APP_PRIVATE_KEY,
         method: TEST_METHOD_GET,
         url: TEST_URL,
         params: { a: '1', b: '2' },
@@ -773,7 +773,7 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
         // 生成认证头
         const headers = RsaV3Util.getAuthHeaders({ // Use getAuthHeaders
           appKey: TEST_APP_KEY,
-          secretKey: TEST_APP_PRIVATE_KEY,
+          appPrivateKey: TEST_APP_PRIVATE_KEY,
           method: 'POST',
           url: TEST_URL,
           params: formParams,
@@ -861,7 +861,7 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
         // 生成认证头
         const headers = RsaV3Util.getAuthHeaders({ // Use getAuthHeaders
           appKey: TEST_APP_KEY,
-          secretKey: TEST_APP_PRIVATE_KEY,
+          appPrivateKey: TEST_APP_PRIVATE_KEY,
           method: 'POST',
           url: TEST_URL,
           params: jsonParams,
