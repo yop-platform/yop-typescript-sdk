@@ -1,0 +1,205 @@
+TITLE: Sending JSON POST Request with YOP Client - TypeScript
+DESCRIPTION: A convenience method for sending an HTTP POST request specifically with the `application/json` content type. `apiUrl` is relative to the base URL, and `body` contains the data sent as JSON. `timeout` is optional. It returns a Promise resolving with the parsed API response of type T.
+SOURCE: https://github.com/yop-platform/yop-typescript-sdk/blob/main/README.md#_snippet_7
+
+LANGUAGE: TypeScript
+CODE:
+```
+yopClient.postJson<T>(apiUrl: string, body: Record<string, any>, timeout?: number): Promise<T>
+```
+
+----------------------------------------
+
+TITLE: Installing YeePay TypeScript SDK with NPM/Yarn/PNPM (Bash)
+DESCRIPTION: Provides commands to install the @yeepay/yop-typescript-sdk package into your project using common Node.js package managers like npm, yarn, or pnpm. This is the first step required to use the SDK in your application.
+SOURCE: https://github.com/yop-platform/yop-typescript-sdk/blob/main/README.md#_snippet_0
+
+LANGUAGE: Bash
+CODE:
+```
+npm install @yeepay/yop-typescript-sdk
+# or
+yarn add @yeepay/yop-typescript-sdk
+# or
+pnpm add @yeepay/yop-typescript-sdk
+```
+
+----------------------------------------
+
+TITLE: Creating YeePay Pre-payment Order with YopClient.post (TypeScript)
+DESCRIPTION: Provides an asynchronous function to create a payment order using the SDK's post method, which defaults to 'application/x-www-form-urlencoded'. It includes constructing the payment data, making the API call, and handling the response.
+SOURCE: https://github.com/yop-platform/yop-typescript-sdk/blob/main/README.md#_snippet_3
+
+LANGUAGE: TypeScript
+CODE:
+```
+import type { YopResponse } from "@yeepay/yop-typescript-sdk";
+// Assuming yopClient is already configured and initialized as shown above
+
+async function createPayment() {
+  const paymentData = {
+    parentMerchantNo: process.env.YOP_PARENT_MERCHANT_NO!, // Your parent merchant number
+    merchantNo: process.env.YOP_MERCHANT_NO!, // Your merchant number
+    orderId: `SDK_TEST_${Date.now()}`, // Unique order ID
+    orderAmount: "0.01", // Amount as string
+    goodsName: "SDK Test Product", // Supports UTF-8 characters (e.g., Chinese)
+    notifyUrl: process.env.YOP_NOTIFY_URL!, // URL for receiving payment notifications
+    userIp: "127.0.0.1", // End-user's IP address
+    scene: "ONLINE", // Transaction scene
+    channel: "WECHAT", // Payment channel
+    // ... include any other necessary fields required by the specific API endpoint
+  };
+
+  try {
+    console.log("Sending pre-pay request:", paymentData);
+    // Use post() for default 'application/x-www-form-urlencoded' requests
+    const response = await yopClient.post<YopResponse>(
+      "/rest/v1.0/aggpay/pre-pay",
+      paymentData
+    );
+    console.log("Received pre-pay response:", response);
+
+    if (response.state === "SUCCESS" && response.result?.code === "00000") {
+      console.log("Pre-pay successful:", response.result);
+      // Process successful response: extract prePayTn, orderId, etc.
+      // const prePayTn = response.result.prePayTn;
+    } else {
+      // Handle API errors or unsuccessful states
+      const errorInfo =
+        response.state === "FAILURE" ? response.error : response.result;
+      console.error("Pre-pay failed:", errorInfo);
+    }
+  } catch (error) {
+    // Handle network errors or issues during the request/response process
+    console.error("Error during pre-pay request execution:", error);
+  }
+}
+
+createPayment();
+```
+
+----------------------------------------
+
+TITLE: Initializing YopClient via Environment Variables (TypeScript)
+DESCRIPTION: Demonstrates initializing the YopClient instance by letting it automatically read configuration from environment variables like YOP_APP_KEY, YOP_APP_PRIVATE_KEY, and YOP_PUBLIC_KEY. It includes importing the SDK and dotenv for loading variables.
+SOURCE: https://github.com/yop-platform/yop-typescript-sdk/blob/main/README.md#_snippet_1
+
+LANGUAGE: TypeScript
+CODE:
+```
+import { YopClient } from '@yeepay/yop-typescript-sdk';
+import dotenv from 'dotenv';
+
+// Load environment variables (e.g., from a .env file)
+dotenv.config();
+
+// Initialize YopClient using environment variables
+try {
+  // No config object passed, SDK uses environment variables
+  const yopClient = new YopClient();
+  console.log('YopClient initialized successfully using environment variables!');
+  // Use yopClient for API calls...
+} catch (error) {
+  console.error('Failed to initialize YopClient from environment variables:', error);
+  // Ensure all required environment variables (YOP_APP_KEY, YOP_APP_PRIVATE_KEY, YOP_PUBLIC_KEY) are set.
+}
+```
+
+----------------------------------------
+
+TITLE: Querying YeePay Payment Order with YopClient.get (TypeScript)
+DESCRIPTION: Provides an asynchronous function to query the status and details of an existing payment order using the SDK's get method. It includes constructing the query data, making the API call, and processing the response.
+SOURCE: https://github.com/yop-platform/yop-typescript-sdk/blob/main/README.md#_snippet_4
+
+LANGUAGE: TypeScript
+CODE:
+```
+import type { YopResponse } from "@yeepay/yop-typescript-sdk";
+// Assuming yopClient is already configured and initialized
+
+async function queryPayment(orderId: string) {
+  const queryData = {
+    parentMerchantNo: process.env.YOP_PARENT_MERCHANT_NO!,
+    merchantNo: process.env.YOP_MERCHANT_NO!,
+    orderId: orderId,
+    // queryType: 'PAYMENT', // Example: Specify query type if needed
+  };
+
+  try {
+    console.log("Sending query request for order:", orderId);
+    // Use get() for GET requests
+    const response = await yopClient.get<YopResponse>(
+      "/rest/v1.0/trade/order/query",
+      queryData
+    );
+    console.log("Received query response:", response);
+
+    if (response.state === "SUCCESS" && response.result?.code === "00000") {
+      console.log("Query successful:", response.result);
+      // Process the order details: response.result.status, response.result.orderAmount etc.
+    } else {
+      const errorInfo =
+        response.state === "FAILURE" ? response.error : response.result;
+      console.error("Query failed:", errorInfo);
+    }
+  } catch (error) {
+    console.error("Error during query request execution:", error);
+  }
+}
+
+// Example call: Replace with an actual order ID
+// queryPayment('SDK_TEST_1678886400000');
+```
+
+----------------------------------------
+
+TITLE: Initializing YopClient with Explicit YopConfig Object (TypeScript)
+DESCRIPTION: Shows how to initialize the YopClient by providing an explicit configuration object to its constructor. This method takes precedence over environment variables and allows for sourcing configuration from various places.
+SOURCE: https://github.com/yop-platform/yop-typescript-sdk/blob/main/README.md#_snippet_2
+
+LANGUAGE: TypeScript
+CODE:
+```
+import { YopClient } from '@yeepay/yop-typescript-sdk';
+import type { YopConfig } from '@yeepay/yop-typescript-sdk';
+import dotenv from 'dotenv'; // Still useful for loading parts of the config
+
+dotenv.config(); // Load any potential fallbacks or other env vars
+
+// Prepare the configuration object explicitly
+const yopConfig: YopConfig = {
+  appKey: process.env.MY_CUSTOM_APP_KEY || 'defaultAppKey', // Example: Using different env var or default
+  secretKey: process.env.MY_SECRET_KEY!,
+  yopPublicKey: process.env.YOP_PUBLIC_KEY!,
+  // yeepayApiBaseUrl: 'https://sandbox.yeepay.com' // Example: Overriding the base URL
+};
+
+// Create a YopClient instance with the explicit config
+const yopClient = new YopClient(yopConfig);
+
+console.log('YopClient initialized successfully with explicit config!');
+```
+
+----------------------------------------
+
+TITLE: Sending GET Request with YOP Client - TypeScript
+DESCRIPTION: Sends an HTTP GET request to a specified YOP API endpoint. The `apiUrl` is relative to the base URL, `params` are the query parameters, and `timeout` is optional. It returns a Promise that resolves with the parsed API response of type T.
+SOURCE: https://github.com/yop-platform/yop-typescript-sdk/blob/main/README.md#_snippet_5
+
+LANGUAGE: TypeScript
+CODE:
+```
+yopClient.get<T>(apiUrl: string, params: Record<string, any>, timeout?: number): Promise<T>
+```
+
+----------------------------------------
+
+TITLE: Sending POST Request with YOP Client - TypeScript
+DESCRIPTION: Sends a general HTTP POST request to a specified YOP API endpoint. The `apiUrl` is relative to the base URL, and `body` contains the data. `contentType` is optional (defaults to form-urlencoded), and `timeout` is optional. It returns a Promise resolving with the parsed API response of type T.
+SOURCE: https://github.com/yop-platform/yop-typescript-sdk/blob/main/README.md#_snippet_6
+
+LANGUAGE: TypeScript
+CODE:
+```
+yopClient.post<T>(apiUrl: string, body: Record<string, any>, contentType?: ContentType, timeout?: number): Promise<T>
+```
