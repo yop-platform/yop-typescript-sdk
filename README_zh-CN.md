@@ -3,6 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@yeepay/yop-typescript-sdk.svg)](https://www.npmjs.com/package/@yeepay/yop-typescript-sdk)
 [![npm downloads](https://img.shields.io/npm/dm/@yeepay/yop-typescript-sdk.svg)](https://www.npmjs.com/package/@yeepay/yop-typescript-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/yop-platform/yop-typescript-sdk)
 
 [Read this document in English](README.md)
 
