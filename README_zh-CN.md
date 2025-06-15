@@ -3,6 +3,8 @@
 [![npm version](https://img.shields.io/npm/v/@yeepay/yop-typescript-sdk.svg)](https://www.npmjs.com/package/@yeepay/yop-typescript-sdk)
 [![npm downloads](https://img.shields.io/npm/dm/@yeepay/yop-typescript-sdk.svg)](https://www.npmjs.com/package/@yeepay/yop-typescript-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/yop-platform/yop-typescript-sdk/workflows/CI/badge.svg)](https://github.com/yop-platform/yop-typescript-sdk/actions)
+[![codecov](https://codecov.io/gh/yop-platform/yop-typescript-sdk/branch/main/graph/badge.svg)](https://codecov.io/gh/yop-platform/yop-typescript-sdk)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/yop-platform/yop-typescript-sdk)
 
 [Read this document in English](README.md)
@@ -40,14 +42,14 @@ pnpm add @yeepay/yop-typescript-sdk
 1.  **通过环境变量（推荐，更简单）：**
     如果在构造函数中未传递配置对象，SDK 将自动尝试从以下环境变量加载所需配置：
     - `YOP_APP_KEY`: (必需) 您的易宝应用 AppKey。
-    - `YOP_APP_PRIVATE_KEY`: (必需) 您应用的私钥（原始字符串，PEM 格式 PKCS#1 或 PKCS#8）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**
+    - `YOP_SECRET_KEY`: (必需) 您应用的私钥（原始字符串，PEM 格式 PKCS#1 或 PKCS#8）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**
     - `YOP_PUBLIC_KEY`: (必需) 易宝平台的公钥（原始字符串，PEM 格式）。这是公钥*内容*，不是文件路径。请从易宝开发者门户下载。
     - `YOP_API_BASE_URL`: (可选) 易宝 API 的基础 URL。默认为生产环境 (`https://openapi.yeepay.com`)。
 
     *示例 `.env` 文件：*
     ```dotenv
     YOP_APP_KEY=your_app_key
-    YOP_APP_PRIVATE_KEY='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'
+    YOP_SECRET_KEY='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'
     YOP_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----'
     # YOP_API_BASE_URL=https://sandbox.yeepay.com # 可选，用于沙箱环境
     ```
@@ -68,7 +70,7 @@ pnpm add @yeepay/yop-typescript-sdk
       // 使用 yopClient 进行 API 调用...
     } catch (error) {
       console.error('从环境变量初始化 YopClient 失败：', error);
-      // 请确保所有必需的环境变量（YOP_APP_KEY, YOP_APP_PRIVATE_KEY, YOP_PUBLIC_KEY）都已设置。
+      // 请确保所有必需的环境变量（YOP_APP_KEY, YOP_SECRET_KEY, YOP_PUBLIC_KEY）都已设置。
     }
     ```
 
@@ -86,7 +88,7 @@ pnpm add @yeepay/yop-typescript-sdk
     // 显式准备配置对象
     const yopConfig: YopConfig = {
       appKey: process.env.MY_CUSTOM_APP_KEY || 'defaultAppKey', // 示例：使用不同的环境变量或默认值
-      appPrivateKey: process.env.MY_SECRET_KEY!, // 示例：从特定变量获取
+      secretKey: process.env.MY_SECRET_KEY!, // 示例：从特定变量获取
       yopPublicKey: process.env.YOP_PUBLIC_KEY!, // 如果需要，仍可从标准环境变量加载
       // yeepayApiBaseUrl: 'https://sandbox.yeepay.com' // 示例：覆盖基础 URL
     };
@@ -102,7 +104,7 @@ pnpm add @yeepay/yop-typescript-sdk
 当您向 `YopClient` 构造函数传递配置对象时，将使用这些选项。如果对象中省略了某个选项，SDK 将尝试回退到相应的环境变量。
 
 - `appKey` (string, 必需): 您的唯一应用标识符，由易宝提供。（回退到 `process.env.YOP_APP_KEY`）。
-- `appPrivateKey` (string, 必需): 您应用的私钥（PEM 格式的原始字符串）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**（回退到 `process.env.YOP_APP_PRIVATE_KEY`）。
+- `secretKey` (string, 必需): 您应用的私钥（PEM 格式的原始字符串）。SDK 会自动格式化非 PEM 格式的私钥。**请妥善保管！**（回退到 `process.env.YOP_SECRET_KEY`）。
 - `yopPublicKey` (string, 必需): 用于验证响应的易宝平台公钥（PEM 格式的原始字符串）。这必须是密钥*内容*，而不是文件路径。（回退到 `process.env.YOP_PUBLIC_KEY`）。
 - `yeepayApiBaseUrl` (string, 可选): 易宝 API 的基础 URL。（回退到 `process.env.YOP_API_BASE_URL`，然后默认为 `https://openapi.yeepay.com`）。
 
@@ -237,6 +239,85 @@ async function queryPayment(orderId: string) {
 ### 类型
 
 有关配置 (`YopConfig`)、响应 (`YopResponse`)、错误和内容类型的详细类型定义，请参见 `src/types.ts`。
+
+## 系统要求
+
+- **Node.js**: >= 18.0.0
+- **TypeScript**: >= 4.5.0（如果使用 TypeScript）
+- **包管理器**: npm、yarn 或 pnpm
+
+## 测试和质量保证
+
+此 SDK 包含全面的测试和质量保证措施：
+
+- **单元测试**: 对所有核心功能进行全面的测试覆盖
+- **集成测试**: 真实 API 集成测试（配置后）
+- **类型安全**: 完整的 TypeScript 支持，严格的类型检查
+- **代码覆盖率**: 最低 60% 覆盖率要求
+- **持续集成**: 在多个 Node.js 版本（18.x、20.x）上自动测试
+- **安全扫描**: 使用 Snyk 进行自动漏洞扫描
+- **代码质量**: ESLint 和 Prettier 确保一致的代码风格
+
+### 运行测试
+
+```bash
+# 运行所有测试
+npm test
+
+# 运行带覆盖率的测试
+npm test -- --coverage
+
+# 运行代码检查
+npm run lint
+
+# 构建项目
+npm run build
+```
+
+## 故障排除
+
+### 常见问题
+
+**1. "签名无效" 或 "签名验证失败" 错误：**
+
+- 确保您的 `YOP_SECRET_KEY` 格式正确（PEM 格式）
+- 验证您的 `YOP_PUBLIC_KEY` 与易宝开发者门户中的公钥匹配
+- 检查您的系统时间是否同步（签名包含时间戳）
+
+**2. "缺少必需的环境变量" 错误：**
+
+- 验证所有必需的环境变量都已设置：`YOP_APP_KEY`、`YOP_SECRET_KEY`、`YOP_PUBLIC_KEY`
+- 检查您的 `.env` 文件是否在正确位置且格式正确
+
+**3. 网络或超时错误：**
+
+- 检查您的网络连接
+- 验证 `YOP_API_BASE_URL` 是否正确（测试时使用沙箱 URL）
+- 考虑在 API 调用中增加超时参数
+
+**4. TypeScript 编译错误：**
+
+- 确保您使用的是 Node.js >= 18.0.0
+- 检查您的 TypeScript 版本是否 >= 4.5.0
+- 验证您的 `tsconfig.json` 包含 ES2020+ 目标和 ESNext 模块
+
+### 获取帮助
+
+- 查看 [Issues](https://github.com/yop-platform/yop-typescript-sdk/issues) 页面了解已知问题
+- 查阅 [易宝 API 文档](https://open.yeepay.com/docs)
+- 创建新的 issue，提供详细的错误信息和重现步骤
+
+## 安全
+
+此 SDK 实现了行业标准的安全实践：
+
+- **RSA 签名**: 所有请求都使用 RSA-SHA256 进行签名
+- **请求验证**: 所有响应都经过真实性验证
+- **安全密钥处理**: 私钥在内存中安全处理
+- **无密钥存储**: 密钥永远不会写入磁盘或日志
+- **UTF-8 支持**: 正确处理签名中的国际字符
+
+有关安全漏洞，请参阅我们的[安全策略](SECURITY.md)。
 
 ## 贡献
 
