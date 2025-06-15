@@ -27,6 +27,13 @@ jobs:
     - name: Install dependencies
       run: npm ci # 使用 ci 更快更可靠
 
+    - name: Snyk
+      uses: snyk/actions@0.4.0
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high
+
     - name: Lint code
       run: npm run lint --if-present # 如果定义了 lint 脚本则运行
 
