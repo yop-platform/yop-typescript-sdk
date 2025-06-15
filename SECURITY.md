@@ -2,20 +2,51 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+我们为以下版本提供安全更新支持：
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
 | 4.0.x   | :white_check_mark: |
 | < 4.0   | :x:                |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+如果您发现了安全漏洞，请通过以下方式报告：
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+### 报告渠道
+
+- **邮箱**: <dreambt@gmail.com>
+- **GitHub Security Advisory**: 使用 GitHub 的私有漏洞报告功能
+
+### 报告内容
+
+请在报告中包含以下信息：
+
+- 漏洞的详细描述
+- 重现步骤
+- 影响范围和严重程度评估
+- 如果可能，请提供修复建议
+
+### 响应时间
+
+- **确认收到**: 48小时内
+- **初步评估**: 7天内
+- **修复发布**: 根据严重程度，14-30天内
+
+### 安全更新流程
+
+1. 我们会验证报告的漏洞
+2. 评估影响范围和严重程度
+3. 开发和测试修复方案
+4. 发布安全更新
+5. 公开披露（在修复发布后）
+
+### 负责任的披露
+
+我们遵循负责任的披露原则：
+
+- 在修复发布之前，请不要公开披露漏洞
+- 我们会在修复发布后适当地致谢报告者
+- 严重漏洞可能有资格获得漏洞奖励
+
+感谢您帮助保护 YOP TypeScript SDK 的安全！

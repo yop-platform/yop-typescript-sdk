@@ -1,0 +1,69 @@
+name: Dependency Update
+
+on:
+  schedule:
+    # 每周一早上 9 点运行
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # 允许手动触发
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Update dependencies
+      run: |
+        npm update
+        npm audit fix --force || true
+
+    - name: Check for changes
+      id: changes
+      run: |
+        if git diff --quiet package-lock.json; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Pull Request
+      if: steps.changes.outputs.changed == 'true'
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore: update dependencies'
+        title: 'chore: update dependencies'
+        body: |
+          ## 依赖更新
+
+          此 PR 自动更新了项目依赖项。
+
+          ### 更改内容
+          - 更新了 package-lock.json 中的依赖版本
+          - 修复了已知的安全漏洞
+
+          ### 测试
+          请确保所有测试通过后再合并此 PR。
+
+          ---
+          *此 PR 由 GitHub Actions 自动创建*
+        branch: dependency-updates
+        delete-branch: true
+        labels: |
+          dependencies
+          automated
