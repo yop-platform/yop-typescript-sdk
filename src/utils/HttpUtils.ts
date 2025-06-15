@@ -15,20 +15,22 @@ export class HttpUtils {
    * @param value - The value to normalize
    * @returns Normalized string according to RFC 3986
    */
-  static normalize(value: string | number | boolean | undefined | null): string {
+  static normalize(
+    value: string | number | boolean | undefined | null,
+  ): string {
     if (value === undefined || value === null) {
-      return "";
+      return '';
     }
-    
+
     const valueStr = value.toString();
 
-    let vStr = "";
+    let vStr = '';
     const bytes = Buffer.from(valueStr, 'utf-8');
-    
+
     for (let i = 0; i < bytes.length; i++) {
       const byte = bytes[i];
       const s = String.fromCharCode(byte!); // Assert non-null: loop guarantees it's defined
-      
+
       if (s.match(/[0-9a-zA-Z._~-]/)) {
         // RFC 3986 unreserved characters
         vStr += s;
@@ -42,7 +44,9 @@ export class HttpUtils {
           vStr += '%20'; // Convert space to %20 (RFC 3986)
         } else if (s === '%' && i + 2 < bytes.length) {
           // Check if this is %7E which should be converted to ~
-          const nextTwoChars = String.fromCharCode(bytes[i+1]!) + String.fromCharCode(bytes[i+2]!);
+          const nextTwoChars =
+            String.fromCharCode(bytes[i + 1]!) +
+            String.fromCharCode(bytes[i + 2]!);
           if (nextTwoChars.toUpperCase() === '7E') {
             vStr += '~';
             i += 2; // Skip the next two bytes
@@ -71,20 +75,20 @@ export class HttpUtils {
     const len = str.length;
     for (let i = 0; i < len; i++) {
       const c = str.charCodeAt(i);
-      if (c >= 0x010000 && c <= 0x10FFFF) {
-        bytes.push(((c >> 18) & 0x07) | 0xF0);
-        bytes.push(((c >> 12) & 0x3F) | 0x80);
-        bytes.push(((c >> 6) & 0x3F) | 0x80);
-        bytes.push((c & 0x3F) | 0x80);
-      } else if (c >= 0x000800 && c <= 0x00FFFF) {
-        bytes.push(((c >> 12) & 0x0F) | 0xE0);
-        bytes.push(((c >> 6) & 0x3F) | 0x80);
-        bytes.push((c & 0x3F) | 0x80);
-      } else if (c >= 0x000080 && c <= 0x0007FF) {
-        bytes.push(((c >> 6) & 0x1F) | 0xC0);
-        bytes.push((c & 0x3F) | 0x80);
+      if (c >= 0x010000 && c <= 0x10ffff) {
+        bytes.push(((c >> 18) & 0x07) | 0xf0);
+        bytes.push(((c >> 12) & 0x3f) | 0x80);
+        bytes.push(((c >> 6) & 0x3f) | 0x80);
+        bytes.push((c & 0x3f) | 0x80);
+      } else if (c >= 0x000800 && c <= 0x00ffff) {
+        bytes.push(((c >> 12) & 0x0f) | 0xe0);
+        bytes.push(((c >> 6) & 0x3f) | 0x80);
+        bytes.push((c & 0x3f) | 0x80);
+      } else if (c >= 0x000080 && c <= 0x0007ff) {
+        bytes.push(((c >> 6) & 0x1f) | 0xc0);
+        bytes.push((c & 0x3f) | 0x80);
       } else {
-        bytes.push(c & 0xFF);
+        bytes.push(c & 0xff);
       }
     }
     return bytes;
@@ -128,7 +132,7 @@ export class HttpUtils {
     if (!needle) {
       return true;
     }
-    const temp = (haystack.length - needle.length);
+    const temp = haystack.length - needle.length;
     return temp >= 0;
   }
 }

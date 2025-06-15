@@ -19,7 +19,9 @@ export class VerifyUtils {
    * @param certificate - PEM formatted X.509 certificate
    * @returns Extracted public key in PEM format or null if extraction fails
    */
-  static extractPublicKeyFromCertificate(certificate: string | Buffer): string | null {
+  static extractPublicKeyFromCertificate(
+    certificate: string | Buffer,
+  ): string | null {
     try {
       // 如果输入为空，直接返回 null
       if (!certificate) {
@@ -29,12 +31,14 @@ export class VerifyUtils {
       // 如果输入是字符串
       if (typeof certificate === 'string') {
         // 检查输入是否已经是格式良好的公钥
-        if (certificate.includes('-----BEGIN PUBLIC KEY-----') &&
-            certificate.includes('-----END PUBLIC KEY-----')) {
+        if (
+          certificate.includes('-----BEGIN PUBLIC KEY-----') &&
+          certificate.includes('-----END PUBLIC KEY-----')
+        ) {
           // 对于测试用例，我们不验证公钥格式，直接返回
           return certificate;
         }
-        
+
         // 检查输入是否是 PEM 格式的证书
         if (certificate.includes('-----BEGIN CERTIFICATE-----')) {
           try {
@@ -43,21 +47,26 @@ export class VerifyUtils {
               key: certificate,
               format: 'pem',
             });
-            
+
             // 导出 PEM 格式的公钥，确保格式一致性
-            const pemKey = publicKey.export({
-              type: 'spki',
-              format: 'pem',
-            }).toString();
-            
+            const pemKey = publicKey
+              .export({
+                type: 'spki',
+                format: 'pem',
+              })
+              .toString();
+
             // 将换行符替换为 \n，确保格式一致性
             return pemKey.replace(/\r?\n/g, '\n');
           } catch (certError) {
-            console.error('Error extracting public key from PEM certificate:', certError);
+            console.error(
+              'Error extracting public key from PEM certificate:',
+              certError,
+            );
             return null;
           }
         }
-        
+
         // 如果输入看起来像是原始公钥（没有 PEM 头尾），尝试格式化它
         try {
           const formattedKey = this.formatPublicKey(certificate);
@@ -75,31 +84,37 @@ export class VerifyUtils {
             format: 'der',
             type: 'spki',
           });
-          
+
           // 导出 PEM 格式的公钥，确保格式一致性
-          const pemKey = publicKey.export({
-            type: 'spki',
-            format: 'pem',
-          }).toString();
-          
+          const pemKey = publicKey
+            .export({
+              type: 'spki',
+              format: 'pem',
+            })
+            .toString();
+
           // 将换行符替换为 \n，确保格式一致性
           return pemKey.replace(/\r?\n/g, '\n');
         } catch (derError) {
           // 如果上面的方法失败，尝试使用 X509Certificate 类（Node.js v15.6.0+）
           try {
-            // @ts-ignore - X509Certificate 可能在某些 TypeScript 版本中未定义
             const cert = new crypto.X509Certificate(certificate);
-            return cert.publicKey.export({
-              type: 'spki',
-              format: 'pem',
-            }).toString();
+            return cert.publicKey
+              .export({
+                type: 'spki',
+                format: 'pem',
+              })
+              .toString();
           } catch (x509Error) {
-            console.error('Error extracting public key from DER certificate:', x509Error);
+            console.error(
+              'Error extracting public key from DER certificate:',
+              x509Error,
+            );
             return null;
           }
         }
       }
-      
+
       // 如果所有方法都失败，返回 null
       return null;
     } catch (error) {
@@ -123,13 +138,15 @@ export class VerifyUtils {
       if (!rawKey || typeof rawKey !== 'string') {
         return null;
       }
-      
+
       // 如果输入已经是格式良好的公钥，直接返回
-      if (rawKey.includes('-----BEGIN PUBLIC KEY-----') &&
-          rawKey.includes('-----END PUBLIC KEY-----')) {
+      if (
+        rawKey.includes('-----BEGIN PUBLIC KEY-----') &&
+        rawKey.includes('-----END PUBLIC KEY-----')
+      ) {
         return rawKey;
       }
-      
+
       // 清理输入，移除任何现有的 PEM 头尾和空白
       const cleanKey = rawKey
         .replace(/-----BEGIN PUBLIC KEY-----/g, '')
@@ -137,16 +154,16 @@ export class VerifyUtils {
         .replace(/-----BEGIN CERTIFICATE-----/g, '')
         .replace(/-----END CERTIFICATE-----/g, '')
         .replace(/\s+/g, '');
-      
+
       // 格式化为 PEM 格式
-      const BEGIN_MARKER = "-----BEGIN PUBLIC KEY-----";
-      const END_MARKER = "-----END PUBLIC KEY-----";
-      let formattedKey = "";
+      const BEGIN_MARKER = '-----BEGIN PUBLIC KEY-----';
+      const END_MARKER = '-----END PUBLIC KEY-----';
+      let formattedKey = '';
       const len = cleanKey.length;
       let start = 0;
-  
+
       while (start < len) {
-        const chunk = cleanKey.substr(start, 64);
+        const chunk = cleanKey.substring(start, start + 64);
         if (formattedKey.length) {
           formattedKey += chunk + '\n';
         } else {
@@ -154,7 +171,7 @@ export class VerifyUtils {
         }
         start += 64;
       }
-  
+
       return BEGIN_MARKER + '\n' + formattedKey + END_MARKER;
     } catch (error) {
       return null;
@@ -181,28 +198,28 @@ export class VerifyUtils {
       // 1. 处理数据
       const result = this.getResult(params.data);
 
-      let sb = "";
+      let sb = '';
       if (!result) {
-        sb = "";
+        sb = '';
       } else {
         sb += result.trim();
       }
 
       // 移除所有空白字符，确保一致的格式
-      sb = sb.replace(/[\s]{2,}/g, "");
-      sb = sb.replace(/\n/g, "");
-      sb = sb.replace(/[\s]/g, "");
-      
+      sb = sb.replace(/[\s]{2,}/g, '');
+      sb = sb.replace(/\n/g, '');
+      sb = sb.replace(/[\s]/g, '');
+
       // 2. 处理签名
       if (!params.sign) {
         return false;
       }
-      
+
       let sign = params.sign.replace('$SHA256', '');
       // 将 URL 安全的 Base64 转换为标准 Base64
       sign = sign.replace(/[-]/g, '+');
       sign = sign.replace(/[_]/g, '/');
-      
+
       // 添加可能缺失的填充
       while (sign.length % 4 !== 0) {
         sign += '=';
@@ -210,7 +227,7 @@ export class VerifyUtils {
 
       // 3. 处理公钥
       let public_key: string | null = null;
-      
+
       // 检查输入是否是 Buffer（二进制证书）
       if (Buffer.isBuffer(params.publicKey)) {
         public_key = this.extractPublicKeyFromCertificate(params.publicKey);
@@ -225,13 +242,13 @@ export class VerifyUtils {
         } catch (e) {
           // 忽略错误，继续尝试其他方法
         }
-        
+
         // 如果上面的方法失败，尝试作为字符串处理
         if (!public_key) {
           public_key = this.extractPublicKeyFromCertificate(params.publicKey);
         }
       }
-      
+
       if (!public_key) {
         console.error('Failed to extract public key from certificate');
         return false;
@@ -244,7 +261,7 @@ export class VerifyUtils {
         // 创建验证对象
         const verify = crypto.createVerify('RSA-SHA256');
         verify.update(sb);
-        
+
         // 执行验证
         const res = verify.verify(public_key, sign, 'base64');
         return res;
@@ -265,18 +282,18 @@ export class VerifyUtils {
     try {
       // 尝试解析完整的 JSON 响应
       const parsedResponse = JSON.parse(str);
-      
+
       // 如果存在 result 字段，将其转换回 JSON 字符串
       if (parsedResponse && typeof parsedResponse.result === 'object') {
         return JSON.stringify(parsedResponse.result);
       }
-      
+
       // 如果无法通过 JSON 解析获取 result，回退到正则表达式方法
       const match = str.match(/"result"\s*:\s*({.*?})\s*,\s*"ts"/s);
       if (match && match[1]) {
         return match[1];
       }
-      
+
       // 如果正则表达式也失败，尝试更宽松的匹配
       const looseMatch = str.match(/"result"\s*:\s*(\{[^]*?\})/);
       if (looseMatch && looseMatch[1]) {
@@ -288,7 +305,7 @@ export class VerifyUtils {
           // 如果解析失败，忽略并继续
         }
       }
-      
+
       // 如果所有方法都失败，返回空字符串
       return '';
     } catch (e) {
@@ -308,12 +325,12 @@ export class VerifyUtils {
   static digital_envelope_handler(
     content: string,
     isv_private_key: string,
-    yop_public_key: string
+    yop_public_key: string,
   ): DigitalEnvelopeResult {
-    let event: DigitalEnvelopeResult = {
+    const event: DigitalEnvelopeResult = {
       status: 'failed',
       result: '',
-      message: ''
+      message: '',
     };
 
     if (!content) {
@@ -326,12 +343,17 @@ export class VerifyUtils {
       try {
         const digital_envelope_arr = content.split('$');
         // Provide default empty string if array element is undefined
-        const encryted_key_safe = this.base64_safe_handler(digital_envelope_arr[0] ?? '');
-        const decryted_key = this.rsaDecrypt(encryted_key_safe, this.key_format(isv_private_key));
+        const encryted_key_safe = this.base64_safe_handler(
+          digital_envelope_arr[0] ?? '',
+        );
+        const decryted_key = this.rsaDecrypt(
+          encryted_key_safe,
+          this.key_format(isv_private_key),
+        );
         const biz_param_arr = this.aesDecrypt(
           // Provide default empty string if array element is undefined
           this.base64_safe_handler(digital_envelope_arr[1] ?? ''),
-          decryted_key
+          decryted_key,
         ).split('$');
 
         const sign = biz_param_arr.pop() || '';
@@ -364,38 +386,44 @@ export class VerifyUtils {
    * @param publicKeyStr - 公钥
    * @returns 签名是否有效
    */
-  static isValidNotifyResult(result: string, sign: string, publicKeyStr: string): boolean {
+  static isValidNotifyResult(
+    result: string,
+    sign: string,
+    publicKeyStr: string,
+  ): boolean {
     try {
       // 验证输入参数
       if (!sign || !publicKeyStr) {
-        console.warn('Missing signature or public key for notification verification');
+        console.warn(
+          'Missing signature or public key for notification verification',
+        );
         return false;
       }
-      
+
       // 处理数据
-      let sb = "";
+      let sb = '';
       if (!result) {
-        sb = "";
+        sb = '';
       } else {
         sb += result;
       }
-      
+
       // 处理签名
-      sign = sign + "";
+      sign = sign + '';
       sign = sign.replace(/[-]/g, '+');
       sign = sign.replace(/[_]/g, '/');
-      
+
       // 添加可能缺失的填充
       while (sign.length % 4 !== 0) {
         sign += '=';
       }
-      
+
       // 处理公钥 - 使用改进的公钥处理逻辑
       const formattedPublicKey = this.formatPublicKey(publicKeyStr);
       if (!formattedPublicKey) {
         return false;
       }
-      
+
       // 验证签名
       try {
         const verify = crypto.createVerify('RSA-SHA256');
@@ -425,7 +453,9 @@ export class VerifyUtils {
    * @returns Formatted private key
    */
   static key_format(key: string): string {
-    return '-----BEGIN PRIVATE KEY-----\n' + key + '\n-----END PRIVATE KEY-----';
+    return (
+      '-----BEGIN PRIVATE KEY-----\n' + key + '\n-----END PRIVATE KEY-----'
+    );
   }
 
   /**
@@ -439,9 +469,9 @@ export class VerifyUtils {
     const decodeData = crypto.privateDecrypt(
       {
         key: privateKey,
-        padding: crypto.constants.RSA_PKCS1_PADDING
+        padding: crypto.constants.RSA_PKCS1_PADDING,
       },
-      block
+      block,
     );
     return decodeData;
   }
@@ -453,7 +483,11 @@ export class VerifyUtils {
    * @returns Decrypted data
    */
   static aesDecrypt(encrypted: string, key: Buffer): string {
-    const decipher = crypto.createDecipheriv('aes-128-ecb', key, Buffer.alloc(0));
+    const decipher = crypto.createDecipheriv(
+      'aes-128-ecb',
+      key,
+      Buffer.alloc(0),
+    );
     let decrypted = decipher.update(encrypted, 'base64', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
@@ -480,18 +514,19 @@ export class VerifyUtils {
     // let length = 0; // length seems unused or incorrectly used below
 
     switch (format) {
-      case 'json':
+      case 'json': {
         // Attempt to find the start of the result object after "result":
         local = content.indexOf('"result"');
-        if (local === -1) return ""; // Or throw error? Handle case where "result" is not found
+        if (local === -1) return ''; // Or throw error? Handle case where "result" is not found
         // Find the opening brace after "result":
         const openBraceIndex = content.indexOf('{', local + 8); // Search after "result":
-        if (openBraceIndex === -1) return ""; // Handle case where '{' is not found
+        if (openBraceIndex === -1) return ''; // Handle case where '{' is not found
 
         // Find the closing brace and the subsequent comma before "ts"
         // This is still fragile. A proper JSON parse is much better.
         const closingPartIndex = content.lastIndexOf('},"ts"');
-        if (closingPartIndex === -1 || closingPartIndex < openBraceIndex) return ""; // Handle case where closing part is not found
+        if (closingPartIndex === -1 || closingPartIndex < openBraceIndex)
+          return ''; // Handle case where closing part is not found
 
         result = content.substring(openBraceIndex, closingPartIndex + 1); // Extract content between {}
         try {
@@ -499,13 +534,15 @@ export class VerifyUtils {
           JSON.parse(result);
           return result;
         } catch (e) {
-          return ""; // Return empty or throw if validation fails
+          return ''; // Return empty or throw if validation fails
         }
+      }
 
-      default: // Assuming XML-like structure?
+      default: {
+        // Assuming XML-like structure?
         // Corrected potential typo: '</state>' instead of '"</state>"'
         local = content.indexOf('</state>');
-        if (local === -1) return ""; // Handle case where '</state>' is not found
+        if (local === -1) return ''; // Handle case where '</state>' is not found
 
         // Find the start of the relevant content after '</state>'
         // The original logic `result.substr(length + 4)` was unclear. Assuming we need content after </state>.
@@ -513,11 +550,12 @@ export class VerifyUtils {
 
         // Find the end before ',"ts"' (assuming this delimiter exists)
         const endIndex = content.lastIndexOf(',"ts"'); // Assuming ,"ts" marks the end
-        if (endIndex === -1 || endIndex <= startIndex) return ""; // Handle case where end delimiter is not found
+        if (endIndex === -1 || endIndex <= startIndex) return ''; // Handle case where end delimiter is not found
 
         result = content.substring(startIndex, endIndex).trim(); // Extract and trim whitespace
         // The original `result.substr(0, -2)` was likely incorrect.
         return result; // Return the extracted substring
+      }
     }
   }
 }
