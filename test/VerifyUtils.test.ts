@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { jest, describe, beforeEach, test, expect, it } from '@jest/globals';
 
 // 获取当前文件的目录路径（ESM 兼容方式）
 const __filename = fileURLToPath(import.meta.url);
@@ -440,6 +441,302 @@ YhAN0oFzJZvs5lFG9Bg+kNkyhgf9eVcUUxXKnA6UwXq2amoTa4Iq3NW6YuPI
       expect(VerifyUtils.isValidNotifyResult(testData, '', publicKey)).toBe(false);
       expect(VerifyUtils.isValidNotifyResult(testData, signature, '')).toBe(false);
     });
+
+  describe('Edge Cases and Error Handling', () => {
+    it('should handle base64 certificate extraction failure', () => {
+      const invalidBase64Cert = 'invalid-base64-data';
+
+      const result = VerifyUtils.isValidRsaResult({
+        data: 'test data',
+        sign: 'test-signature',
+        publicKey: invalidBase64Cert
+      });
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle certificate extraction failure and fallback to string processing', () => {
+      const invalidCert = 'not-a-certificate';
+
+      // Mock extractPublicKeyFromCertificate to throw error
+      jest.spyOn(VerifyUtils, 'extractPublicKeyFromCertificate').mockImplementation(() => {
+        throw new Error('Certificate extraction failed');
+      });
+
+      const result = VerifyUtils.isValidRsaResult({
+        data: 'test data',
+        sign: 'test-signature',
+        publicKey: invalidCert
+      });
+
+      expect(result).toBe(false); // Will fail due to certificate extraction error
+      expect(VerifyUtils.extractPublicKeyFromCertificate).toHaveBeenCalledTimes(1);
+
+      jest.restoreAllMocks();
+    });
+
+    it('should handle public key extraction failure', () => {
+      // Mock extractPublicKeyFromCertificate to always throw
+      jest.spyOn(VerifyUtils, 'extractPublicKeyFromCertificate').mockImplementation(() => {
+        throw new Error('Public key extraction failed');
+      });
+
+      const result = VerifyUtils.isValidRsaResult({
+        data: 'test data',
+        sign: 'test-signature',
+        publicKey: 'invalid-cert'
+      });
+
+      expect(result).toBe(false);
+
+      jest.restoreAllMocks();
+    });
+
+    it('should handle signature verification error', () => {
+      // Create a test public key for this test
+      const { publicKey: testPublicKey } = crypto.generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: {
+          type: 'spki',
+          format: 'pem'
+        },
+        privateKeyEncoding: {
+          type: 'pkcs8',
+          format: 'pem'
+        }
+      });
+
+      // Mock crypto.createVerify to throw error
+      jest.spyOn(crypto, 'createVerify').mockImplementation(() => {
+        throw new Error('Verification failed');
+      });
+
+      const result = VerifyUtils.isValidRsaResult({
+        data: 'test data',
+        sign: 'test-signature',
+        publicKey: testPublicKey
+      });
+
+      expect(result).toBe(false);
+
+      jest.restoreAllMocks();
+    });
+  });
+
+  describe('Digital Envelope Processing', () => {
+    const mockPrivateKey = 'mock-private-key';
+    // Create a test public key
+    const { publicKey: mockYopPublicKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: {
+        type: 'spki',
+        format: 'pem'
+      },
+      privateKeyEncoding: {
+        type: 'pkcs8',
+        format: 'pem'
+      }
+    });
+
+    it('should handle empty content parameter', () => {
+      const result = VerifyUtils.digital_envelope_handler('', mockPrivateKey, mockYopPublicKey);
+
+      expect(result.status).toBe('failed');
+      expect(result.message).toBe('数字信封参数为空');
+    });
+
+    it('should handle empty private key parameter', () => {
+      const result = VerifyUtils.digital_envelope_handler('test-content', '', mockYopPublicKey);
+
+      expect(result.status).toBe('failed');
+      expect(result.message).toBe('商户私钥参数为空');
+    });
+
+    it('should handle empty public key parameter', () => {
+      const result = VerifyUtils.digital_envelope_handler('test-content', mockPrivateKey, '');
+
+      expect(result.status).toBe('failed');
+      expect(result.message).toBe('易宝开放平台公钥参数为空');
+    });
+
+    it('should handle digital envelope processing error', () => {
+      // Mock base64_safe_handler to throw error
+      jest.spyOn(VerifyUtils, 'base64_safe_handler').mockImplementation(() => {
+        throw new Error('Base64 decoding failed');
+      });
+
+      const result = VerifyUtils.digital_envelope_handler('invalid$content', mockPrivateKey, mockYopPublicKey);
+
+      expect(result.status).toBe('failed');
+      expect(result.message).toBe('Base64 decoding failed');
+
+      jest.restoreAllMocks();
+    });
+
+    it('should handle signature verification failure in digital envelope', () => {
+      // Mock the decryption process to return valid data but invalid signature
+      jest.spyOn(VerifyUtils, 'base64_safe_handler').mockReturnValue('mock-decoded-data');
+      jest.spyOn(VerifyUtils, 'rsaDecrypt').mockReturnValue(Buffer.from('mock-decrypted-key'));
+      jest.spyOn(VerifyUtils, 'aesDecrypt').mockReturnValue('decrypted-data$invalid-signature');
+      jest.spyOn(VerifyUtils, 'isValidNotifyResult').mockReturnValue(false);
+
+      const result = VerifyUtils.digital_envelope_handler('encrypted$data', mockPrivateKey, mockYopPublicKey);
+
+      expect(result.status).toBe('failed');
+      expect(result.message).toBe('验签失败');
+
+      jest.restoreAllMocks();
+    });
+
+    it('should handle successful digital envelope processing', () => {
+      // Mock the entire decryption and verification process
+      jest.spyOn(VerifyUtils, 'base64_safe_handler').mockReturnValue('mock-decoded-data');
+      jest.spyOn(VerifyUtils, 'rsaDecrypt').mockReturnValue(Buffer.from('mock-decrypted-key'));
+      jest.spyOn(VerifyUtils, 'aesDecrypt').mockReturnValue('decrypted-data$valid-signature');
+      jest.spyOn(VerifyUtils, 'isValidNotifyResult').mockReturnValue(true);
+
+      const result = VerifyUtils.digital_envelope_handler('encrypted$data', mockPrivateKey, mockYopPublicKey);
+
+      expect(result.status).toBe('success');
+      expect(result.result).toBe('decrypted-data');
+
+      jest.restoreAllMocks();
+    });
+  });
+
+  describe('Notification Verification Edge Cases', () => {
+    it('should handle formatPublicKey failure', () => {
+      // Mock formatPublicKey to return null
+      jest.spyOn(VerifyUtils, 'formatPublicKey').mockReturnValue(null);
+
+      const result = VerifyUtils.isValidNotifyResult('test-data', 'test-signature', 'invalid-key');
+
+      expect(result).toBe(false);
+
+      jest.restoreAllMocks();
+    });
+
+    it('should handle signature verification error in notification', () => {
+      // Create a test public key for this test
+      const { publicKey: testPublicKey } = crypto.generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: {
+          type: 'spki',
+          format: 'pem'
+        },
+        privateKeyEncoding: {
+          type: 'pkcs8',
+          format: 'pem'
+        }
+      });
+
+      // Mock crypto.createVerify to throw error
+      jest.spyOn(crypto, 'createVerify').mockImplementation(() => {
+        throw new Error('Verification failed');
+      });
+
+      const result = VerifyUtils.isValidNotifyResult('test-data', 'test-signature', testPublicKey);
+
+      expect(result).toBe(false);
+
+      jest.restoreAllMocks();
+    });
+
+    it('should handle general error in notification verification', () => {
+      // Mock formatPublicKey to throw error
+      jest.spyOn(VerifyUtils, 'formatPublicKey').mockImplementation(() => {
+        throw new Error('Format error');
+      });
+
+      const result = VerifyUtils.isValidNotifyResult('test-data', 'test-signature', 'test-key');
+
+      expect(result).toBe(false);
+
+      jest.restoreAllMocks();
+    });
+  });
+
+  describe('getBizResult Edge Cases', () => {
+    it('should handle JSON format with missing result field', () => {
+      const content = '{"data": "test", "ts": "timestamp"}';
+
+      const result = VerifyUtils.getBizResult(content, 'json');
+
+      expect(result).toBe('');
+    });
+
+    it('should handle JSON format with missing opening brace', () => {
+      const content = '{"result": "no opening brace", "ts": "timestamp"}';
+
+      const result = VerifyUtils.getBizResult(content, 'json');
+
+      expect(result).toBe('');
+    });
+
+    it('should handle JSON format with missing closing part', () => {
+      const content = '{"result": {"data": "test"}}';
+
+      const result = VerifyUtils.getBizResult(content, 'json');
+
+      expect(result).toBe('');
+    });
+
+    it('should handle JSON format with invalid JSON in result', () => {
+      const content = '{"result": {invalid json},"ts": "timestamp"}';
+
+      const result = VerifyUtils.getBizResult(content, 'json');
+
+      expect(result).toBe('');
+    });
+
+    it('should handle default format with missing end state', () => {
+      const content = '<state>test</state>some data without end marker';
+
+      const result = VerifyUtils.getBizResult(content, 'xml');
+
+      expect(result).toBe('');
+    });
+
+    it('should handle default format with missing ts marker', () => {
+      const content = '<state>test</state>some data without ts';
+
+      const result = VerifyUtils.getBizResult(content, 'xml');
+
+      expect(result).toBe('');
+    });
+
+    it('should handle default format with invalid end index', () => {
+      const content = '</state>,"ts"';
+
+      const result = VerifyUtils.getBizResult(content, 'xml');
+
+      expect(result).toBe('');
+    });
+
+    it('should handle valid JSON format extraction', () => {
+      const content = '{"result": {"data": "test", "value": 123},"ts": "timestamp"}';
+
+      const result = VerifyUtils.getBizResult(content, 'json');
+
+      expect(result).toBe('{"data": "test", "value": 123}');
+    });
+
+    it('should handle valid default format extraction', () => {
+      const content = 'prefix</state>extracted data,"ts"suffix';
+
+      const result = VerifyUtils.getBizResult(content, 'xml');
+
+      expect(result).toBe('extracted data');
+    });
+
+    it('should return content as-is when no format specified', () => {
+      const content = 'raw content';
+
+      const result = VerifyUtils.getBizResult(content);
+
+      expect(result).toBe('raw content');
+    });
+  });
 
     it('should handle empty result data', () => {
       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
