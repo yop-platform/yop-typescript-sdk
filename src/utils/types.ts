@@ -1,6 +1,6 @@
 export interface RequestOptions {
   appKey: string;
-  appPrivateKey: string;
+  secretKey: string;
   serverRoot?: string;
   yopPublicKey?: string;
   config?: {

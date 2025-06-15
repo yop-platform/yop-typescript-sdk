@@ -1,8 +1,8 @@
 // src/types.ts
 export interface YopConfig {
   appKey: string;
-  appPrivateKey: string; // 商户私钥内容 (不是路径)
-  yopPublicKey?: string | Buffer; // 易宝平台公钥内容 (不是路径), 允许 Buffer
+  secretKey: string; // 商户私钥内容 (不是路径)
+  yopPublicKey?: string; // 易宝平台公钥内容 (不是路径)
   yopApiBaseUrl?: string; // 可选，带默认值 'https://openapi.yeepay.com'
   // 根据需要添加其他配置，如果 YopClient 内部需要它们
   parentMerchantNo?: string;

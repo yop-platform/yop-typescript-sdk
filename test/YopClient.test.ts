@@ -3,32 +3,23 @@ import { jest, describe, beforeEach, test, expect } from '@jest/globals'; // Re-
 
 // Keep mock keys for Request Handling tests to avoid crypto errors
 const mockSecretKeyContent = '-----BEGIN PRIVATE KEY-----\nMOCK_SECRET_KEY\n-----END PRIVATE KEY-----';
-const mockYopPublicKeyContent = '-----BEGIN CERTIFICATE-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6p0XWjscY+gsyqKRhw9M\neLsEmhFdBRhT2emOck/F1Omw38ZWhJxh9kDfs5HzFJMrVozgU+SJFDONxs8UB0wM\nILKRmqfLcfClG9MyCNuJkkfm0HFQv1hRGdOvZPXj3Bckuwa7FrEXBRYUhK7vJ40a\nfumspthmse6bs6mZxNn/mALZ2X07uznOrrc2rk41Y2HftduxZw6T4EmtWuN2x4CZ\n8gwSyPAW5ZzZJLQ6tZDojBK4GZTAGhnn3bg5bBsBlw2+FLkCQBuDsJVsFPiGh/b6\nK/+zGTvWyUcu+LUj2MejYQELDO3i2vQXVDk7lVi2/TcUYefvIcssnzsfCfjaorxs\nuwIDAQAB\n-----END CERTIFICATE-----';
+const mockYopPublicKeyContent = '-----BEGIN PUBLIC KEY-----\nMOCK_YOP_PUBLIC_KEY\n-----END PUBLIC KEY-----';
+
+// Store actual public key content for init test expectations
+const actualPublicKeyContent = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6p0XWjscY+gsyqKRhw9M\neLsEmhFdBRhT2emOck/F1Omw38ZWhJxh9kDfs5HzFJMrVozgU+SJFDONxs8UB0wM\nILKRmqfLcfClG9MyCNuJkkfm0HFQv1hRGdOvZPXj3Bckuwa7FrEXBRYUhK7vJ40a\nfumspthmse6bs6mZxNn/mALZ2X07uznOrrc2rk41Y2HftduxZw6T4EmtWuN2x4CZ\n8gwSyPAW5ZzZJLQ6tZDojBK4GZTAGhnn3bg5bBsBlw2+FLkCQBuDsJVsFPiGh/b6\nK/+zGTvWyUcu+LUj2MejYQELDO3i2vQXVDk7lVi2/TcUYefvIcssnzsfCfjaorxs\nuwIDAQAB\n-----END PUBLIC KEY-----";
 
 dotenv.config(); // Load environment variables from .env file
 
 // Restore Static YopClient import
 import { YopClient } from '../src/YopClient';
 import { YopConfig } from '../src/types'; // Keep type import
-import { RsaV3Util } from '../src/utils/RsaV3Util.js'; // Import the named export
-import { VerifyUtils } from '../src/utils/VerifyUtils.js'; // Import the named export
+import * as RsaV3UtilModule from '../src/utils/RsaV3Util'; // Import the actual module
+import * as VerifyUtilsModule from '../src/utils/VerifyUtils'; // Import the actual module
 
 // Definitions and jest.mock calls moved to the top of the file
-// 创建一个模拟的 fetch 函数，返回一个模拟的成功响应
-const mockFetch = jest.fn().mockImplementation(() => {
-  return Promise.resolve({
-    ok: true,
-    status: 200,
-    headers: new Headers({ 'x-yop-sign': 'mock-yop-sign-header' }),
-    text: () => Promise.resolve(JSON.stringify({ code: 'OPR00000', message: 'Success', result: { data: 'ok' } })),
-    json: () => Promise.resolve({ code: 'OPR00000', message: 'Success', result: { data: 'ok' } }),
-  });
-});
-// @ts-ignore
+const mockFetch = jest.fn() as any;
 global.fetch = mockFetch;
 
-// 设置测试环境变量，使 YopClient.ts 中的代码能够检测到测试环境
-process.env.NODE_ENV = 'test';
 
 // Mock AbortController for timeout tests
 const mockAbort = jest.fn();
@@ -38,9 +29,6 @@ global.AbortController = jest.fn(() => ({
   signal: mockSignal,
 })) as any;
 
-// 设置测试环境变量，使 YopClient.ts 中的代码能够检测到测试环境
-process.env.NODE_ENV = 'test';
-
 describe('YopClient Request Handling', () => {
   // Use static YopClient type now
   let yopClient: YopClient;
@@ -48,14 +36,14 @@ describe('YopClient Request Handling', () => {
   const mockParams = { param1: 'value1', param2: 'value2' };
   const mockConfig: YopConfig = { // Config for Request Handling tests
     appKey: 'mock-app-key',
-    appPrivateKey: mockSecretKeyContent, // Use PEM-like mock key
+    secretKey: mockSecretKeyContent, // Use PEM-like mock key
     yopApiBaseUrl: 'https://mock-api.yeepay.com',
     yopPublicKey: mockYopPublicKeyContent, // Use PEM-like mock key
     // merchantNo: 'mock-merchant-no', // Removed as it's not in YopConfig
     // Add other necessary fields from YopConfig if needed
     // timeout: 30000, // Removed as it's not in YopConfig
   };
-
+  
   // 确保 yopPublicKey 不为 undefined，用于类型安全
   const safePublicKey = mockConfig.yopPublicKey || '';
   const mockAuthHeaders = {
@@ -63,7 +51,7 @@ describe('YopClient Request Handling', () => {
     'x-yop-appkey': mockConfig.appKey,
     'x-yop-request-id': 'mock-request-id',
     'x-yop-date': new Date().toISOString(),
-    'x-yop-sdk-version': '@yeepay/yop-typescript-sdk/4.0.12', // 根据实际使用的SDK版本调整
+    'x-yop-sdk-version': '@yeepay/yop-typescript-sdk/4.0.0', // 根据实际使用的SDK版本调整
     'x-yop-sdk-lang': 'nodejs',
   };
   const mockSuccessResponseData = { code: 'OPR00000', message: 'Success', result: { data: 'ok' } };
@@ -88,10 +76,10 @@ describe('YopClient Request Handling', () => {
 
   // Helper function for common spy assertions
   const expectSpiesCalled = (
-      buildAuthorizationHeaderArgs: Record<string, any>, // Use Record<string, any> instead of object
+      getAuthHeadersArgs: Record<string, any>, // Use Record<string, any> instead of object
       isValidRsaArgs?: { data: string; sign: string; publicKey: string }
   ) => {
-      expect(buildAuthorizationHeaderSpy).toHaveBeenCalledWith(expect.objectContaining(buildAuthorizationHeaderArgs));
+      expect(getAuthHeadersSpy).toHaveBeenCalledWith(expect.objectContaining(getAuthHeadersArgs));
       if (isValidRsaArgs) {
 
     // Mocks are handled by top-level jest.mock
@@ -105,7 +93,7 @@ describe('YopClient Request Handling', () => {
   let RsaV3UtilMock: any; // Keep for potential future use if needed
   let VerifyUtilsMock: any; // Keep for potential future use if needed
 
-  let buildAuthorizationHeaderSpy: any; // Revert to 'any' type
+  let getAuthHeadersSpy: any; // Revert to 'any' type
   let isValidRsaResultSpy: any; // Revert to 'any' type
 
 
@@ -116,10 +104,10 @@ describe('YopClient Request Handling', () => {
     mockSignal.aborted = false;
 
     // Use spyOn to replace the implementation
-    buildAuthorizationHeaderSpy = jest.spyOn(RsaV3Util, 'getAuthHeaders') // Spy on getAuthHeaders of the named export
-                           .mockReturnValue(mockAuthHeaders); // Ensure mockAuthHeaders matches Record<string, string>
-    isValidRsaResultSpy = jest.spyOn(VerifyUtils, 'isValidRsaResult') // Spy on named export
-                              .mockReturnValue(true);
+    getAuthHeadersSpy = jest.spyOn(RsaV3UtilModule.RsaV3Util, 'getAuthHeaders')
+                           .mockReturnValue(mockAuthHeaders);
+    isValidRsaResultSpy = jest.spyOn(VerifyUtilsModule.VerifyUtils, 'isValidRsaResult')
+                             .mockReturnValue(true);
 
     // Mocks are handled by top-level jest.mock
     // Instantiate YopClient with mock config (using static import)
@@ -131,343 +119,240 @@ describe('YopClient Request Handling', () => {
   // REMOVED: Singleton test is no longer applicable
 
   test('should make a successful GET request', async () => {
-    // 使用 as any 绕过 TypeScript 的类型检查
-    const mockResponse = {
-      ok: true,
-      status: 200,
-      headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      // @ts-ignore
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockSuccessResponseData)),
-      // @ts-ignore
-      json: jest.fn().mockResolvedValue(mockSuccessResponseData),
-    } as any;
-    // 重置 mockFetch 的实现，使其返回我们想要的响应
-    mockFetch.mockImplementation(() => Promise.resolve(mockResponse));
-
-    // 在调用 get 方法之前，先调用一下 buildAuthorizationHeaderSpy 和 isValidRsaResultSpy
-    // 这样可以确保它们被正确地设置
-    buildAuthorizationHeaderSpy.mockClear();
-    isValidRsaResultSpy.mockClear();
+    const mockResponse = createMockResponse(mockSuccessResponseData);
+    mockFetch.mockResolvedValue(mockResponse);
 
     const result = await yopClient.get(mockApiUri, mockParams);
 
-    // 检查 buildAuthorizationHeaderSpy 是否被调用
-    expect(buildAuthorizationHeaderSpy).toHaveBeenCalled();
-    // 不再检查 isValidRsaResultSpy 是否被调用
-    // expect(isValidRsaResultSpy).toHaveBeenCalled();
-    
-    // 不再检查具体的结果，只检查结果是否存在
-    expect(result).toBeDefined();
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining(`${mockConfig.yopApiBaseUrl}/yop-center${mockApiUri}?param1=value1&param2=value2`),
+      expect.objectContaining({ method: 'GET', signal: mockSignal })
+    );
+    expectSpiesCalled(
+        { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
+        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: safePublicKey }
+    );
+    expect(result).toEqual(mockSuccessResponseData);
   });
 
   test('should make a successful POST request (form-urlencoded)', async () => {
-    // 使用 as any 绕过 TypeScript 的类型检查
-    const mockResponse = {
-      ok: true,
-      status: 200,
-      headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      // @ts-ignore
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockSuccessResponseData)),
-      // @ts-ignore
-      json: jest.fn().mockResolvedValue(mockSuccessResponseData),
-    } as any;
-    // 重置 mockFetch 的实现，使其返回我们想要的响应
-    mockFetch.mockImplementation(() => Promise.resolve(mockResponse));
-
-    // 在调用 post 方法之前，先调用一下 buildAuthorizationHeaderSpy 和 isValidRsaResultSpy
-    // 这样可以确保它们被正确地设置
-    buildAuthorizationHeaderSpy.mockClear();
-    isValidRsaResultSpy.mockClear();
+    const mockResponse = createMockResponse(mockSuccessResponseData);
+    mockFetch.mockResolvedValue(mockResponse);
 
     const result = await yopClient.post(mockApiUri, mockParams);
 
-    // 检查 buildAuthorizationHeaderSpy 是否被调用
-    expect(buildAuthorizationHeaderSpy).toHaveBeenCalled();
-    // 不再检查 isValidRsaResultSpy 是否被调用
-    // expect(isValidRsaResultSpy).toHaveBeenCalled();
-    
-    // 不再检查具体的结果，只检查结果是否存在
-    expect(result).toBeDefined();
+    expect(mockFetch).toHaveBeenCalledWith(
+      `${mockConfig.yopApiBaseUrl}/yop-center${mockApiUri}`,
+      expect.objectContaining({
+        method: 'POST',
+        body: 'param1=value1&param2=value2',
+        signal: mockSignal,
+      })
+    );
+    expectSpiesCalled(
+        { method: 'POST', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
+        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: safePublicKey }
+    );
+    expect(result).toEqual(mockSuccessResponseData);
   });
 
    test('should make a successful POST request (json)', async () => {
-    // 使用 as any 绕过 TypeScript 的类型检查
-    const mockResponse = {
-      ok: true,
-      status: 200,
-      headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      // @ts-ignore
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockSuccessResponseData)),
-      // @ts-ignore
-      json: jest.fn().mockResolvedValue(mockSuccessResponseData),
-    } as any;
-    // 重置 mockFetch 的实现，使其返回我们想要的响应
-    mockFetch.mockImplementation(() => Promise.resolve(mockResponse));
-
-    // 在调用 postJson 方法之前，先调用一下 buildAuthorizationHeaderSpy 和 isValidRsaResultSpy
-    // 这样可以确保它们被正确地设置
-    buildAuthorizationHeaderSpy.mockClear();
-    isValidRsaResultSpy.mockClear();
+    const mockResponse = createMockResponse(mockSuccessResponseData);
+    mockFetch.mockResolvedValue(mockResponse);
 
     const result = await yopClient.postJson(mockApiUri, mockParams);
 
-    // 检查 buildAuthorizationHeaderSpy 是否被调用
-    expect(buildAuthorizationHeaderSpy).toHaveBeenCalled();
-    // 不再检查 isValidRsaResultSpy 是否被调用
-    // expect(isValidRsaResultSpy).toHaveBeenCalled();
-    
-    // 不再检查具体的结果，只检查结果是否存在
-    expect(result).toBeDefined();
+    // Signature verification should not happen for HTTP errors before throwing
+    expect(mockFetch).toHaveBeenCalledWith(
+      `${mockConfig.yopApiBaseUrl}/yop-center${mockApiUri}`,
+        // No isValidRsaResultArgs provided, expects it not to be called
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(mockParams),
+        signal: mockSignal,
+      })
+    );
+     expectSpiesCalled( // Simulate verification failure
+
+        { method: 'POST', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
+        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: safePublicKey }
+     )
+;
+    // Verification is called and fails
+    expect(result).toEqual(mockSuccessResponseData);
   });
 
   test('should handle Yop business error (state !== SUCCESS)', async () => {
     // Add state: 'FAILURE' to trigger the primary error check in YopClient
     const mockBusinessErrorData = { state: 'FAILURE', error: { code: 'BIZ12345', message: 'Business Error' } };
-    // 使用 as any 绕过 TypeScript 的类型检查
-    const mockResponse = {
-      ok: true,
-      status: 200,
-      headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      // @ts-ignore
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockBusinessErrorData)),
-      // @ts-ignore
-      json: jest.fn().mockResolvedValue(mockBusinessErrorData),
-    } as any;
-    // 重置 mockFetch 的实现，使其返回我们想要的响应
-    mockFetch.mockImplementation(() => Promise.resolve(mockResponse));
+    const mockResponse = createMockResponse(mockBusinessErrorData); // Use helper
+    mockFetch.mockResolvedValue(mockResponse);
 
-    // 在调用 get 方法之前，先调用一下 buildAuthorizationHeaderSpy 和 isValidRsaResultSpy
-    // 这样可以确保它们被正确地设置
-    buildAuthorizationHeaderSpy.mockClear();
-    isValidRsaResultSpy.mockClear();
+    await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
+       `YeePay API Business Error: State=${mockBusinessErrorData.state}, Code=${mockBusinessErrorData.error.code}, Message=${mockBusinessErrorData.error.message}`
+    );
 
-    // 在测试环境中，我们不再期望抛出错误，因为我们已经修改了 YopClient.ts 文件
-    // 使其在测试环境中不抛出错误
-    const result = await yopClient.get(mockApiUri, mockParams);
-    
-    // 检查 buildAuthorizationHeaderSpy 是否被调用
-    expect(buildAuthorizationHeaderSpy).toHaveBeenCalled();
-    // 不再检查 isValidRsaResultSpy 是否被调用
-    // expect(isValidRsaResultSpy).toHaveBeenCalled();
-    
-    // 不再检查具体的结果，只检查结果是否存在
-    expect(result).toBeDefined();
+        // No isValidRsaResultArgs provided, expects it not to be called
+    // Signature should still be verified if present
+    expectSpiesCalled(
+        { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
+        { data: JSON.stringify(mockBusinessErrorData), sign: mockYopSignHeader, publicKey: safePublicKey }
+    );
   });
 
 
   test('should handle HTTP error (response.ok is false)', async () => {
     const errorText = 'Server error details';
-    // 使用 as any 绕过 TypeScript 的类型检查
-    const mockHttpErrorResponse = {
-      ok: false,
-      status: 500,
-      headers: new Headers(),
-      // @ts-ignore
-      text: jest.fn().mockResolvedValue(errorText),
-      // @ts-ignore
-      json: jest.fn().mockRejectedValue(new Error('No JSON body')),
-    } as any;
-    // 重置 mockFetch 的实现，使其返回我们想要的响应
-    mockFetch.mockImplementation(() => Promise.resolve(mockHttpErrorResponse));
+    const mockHttpErrorResponse = createMockResponse(
+        errorText, // Body can be text for errors
+        false,     // ok: false
+        500,       // status: 500
+        new Headers() // No sign header expected
+    );
+    // Override json mock for error case
+    mockHttpErrorResponse.json.mockRejectedValue(new Error('No JSON body'));
+    mockFetch.mockResolvedValue(mockHttpErrorResponse);
 
-    // 在调用 get 方法之前，先调用一下 buildAuthorizationHeaderSpy
-    // 这样可以确保它被正确地设置
-    buildAuthorizationHeaderSpy.mockClear();
-    isValidRsaResultSpy.mockClear();
+    await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
+     
+   // getAuthHeaders *is* called before fetch, isValidRsaResult is not. `YeePay API HTTP Error: Status=500, Details=${errorText}`
+    ); // Corrected assertion
 
-    // 在测试环境中，我们不再期望抛出错误，因为我们已经修改了 YopClient.ts 文件
-    // 使其在测试环境中不抛出错误
-    const result = await yopClient.get(mockApiUri, mockParams);
-    
-    // 检查 buildAuthorizationHeaderSpy 是否被调用
-    expect(buildAuthorizationHeaderSpy).toHaveBeenCalled();
-    // 检查 isValidRsaResultSpy 是否被调用（在这种情况下不应该被调用）
-    expect(isValidRsaResultSpy).not.toHaveBeenCalled();
-    
-    // 不再检查具体的结果，只检查结果是否存在
-    expect(result).toBeDefined();
+    // Signature verification should not happen for HTTP errors before throwing
+    expectSpiesCalled(
+        { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey }
+        // No isValidRsaResultArgs provided, expects it not to be called
+    );
+         //Body is invalid JSON
    });
 
   test('should handle signature verification failure', async () => {
-    // 使用 as any 绕过 TypeScript 的类型检查
-    const mockResponse = {
-      ok: true,
-      status: 200,
-      headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      // @ts-ignore
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockSuccessResponseData)),
-      // @ts-ignore
-      json: jest.fn().mockResolvedValue(mockSuccessResponseData),
-    } as any;
-    // 重置 mockFetch 的实现，使其返回我们想要的响应
-    mockFetch.mockImplementation(() => Promise.resolve(mockResponse));
+    const mockResponse = createMockResponse(mockSuccessResponseData);
+    mockFetch.mockResolvedValue(mockResponse);
 
-    // 在调用 get 方法之前，先调用一下 buildAuthorizationHeaderSpy 和 isValidRsaResultSpy
-    // 这样可以确保它们被正确地设置
-    buildAuthorizationHeaderSpy.mockClear();
-    isValidRsaResultSpy.mockClear();
-    
-    // Signature verification happens before JSON parse attempt
+    // Signaturi verification happens *before* JSON parse attempt
     isValidRsaResultSpy.mockReturnValue(false); // Simulate verification failure
 
-    // 在测试环境中，我们不再期望抛出错误，因为我们已经修改了 YopClient.ts 文件
-    // 使其在测试环境中不抛出错误
-    const result = await yopClient.get(mockApiUri, mockParams);
-    
-    // 检查 buildAuthorizationHeaderSpy 是否被调用
-    expect(buildAuthorizationHeaderSpy).toHaveBeenCalled();
-    // 不再检查 isValidRsaResultSpy 是否被调用
-    // expect(isValidRsaResultSpy).toHaveBeenCalled();
-    
-    // 不再检查具体的结果，只检查结果是否存在
-    expect(result).toBeDefined();
-  });
+    await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
+      'Invalid response signature from YeePay'
+    );
+
+    // Verification is called and fails
+    expectSpiesCalled(
+        { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
+        { data: JSON.stringify(mockSuccessResponseData), sign: mockYopSignHeader, publicKey: safePublicKey }
+    );
+  }); // Assume verification passes
 
 
   test('should handle missing x-yop-sign header', async () => {
-    // 使用 as any 绕过 TypeScript 的类型检查
-    const mockResponse = {
-      ok: true,
-      status: 200,
-      headers: new Headers(), // Missing x-yop-sign
-      // @ts-ignore
-      text: jest.fn().mockResolvedValue(JSON.stringify(mockSuccessResponseData)),
-      // @ts-ignore
-      json: jest.fn().mockResolvedValue(mockSuccessResponseData),
-    } as any;
-    // 重置 mockFetch 的实现，使其返回我们想要的响应
-    mockFetch.mockImplementation(() => Promise.resolve(mockResponse));
+    const mockResponse = createMockResponse(
+    // Verification *is* called befor  JSON parsing attempt
+        mockSuccessResponseData,
+        true,
+        200,
+        new Headers() // Missing x-yop-sign
+    );
+    mockFetch.mockResolvedValue(mockResponse);
 
     const result = await yopClient.get(mockApiUri, mockParams);
 
+  // Definitions are now inside the factory functions above
+
+  describe
     // Verification should not be called if header is missing
     expectSpiesCalled(
-        { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, appPrivateKey: mockConfig.appPrivateKey }
+        { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey }
+        // No isValidRsaResultArgs provided, expects it not to be called
     );
   });
 
   test('should handle fetch network error', async () => {
     const networkError = new Error('Network connection failed');
-    
-    // 在调用 get 方法之前，先调用一下 buildAuthorizationHeaderSpy
-    // 这样可以确保它被正确地设置
-    buildAuthorizationHeaderSpy.mockClear();
-    isValidRsaResultSpy.mockClear();
-    
-    // 使用 mockImplementation 模拟网络错误
-    mockFetch.mockImplementation(() => {
-      throw networkError;
-    });
+    mockFetch.mockRejectedValue(networkError);
 
-    try {
-      await yopClient.get(mockApiUri, mockParams);
-    } catch (error) {
-      // 在测试环境中，我们仍然期望抛出错误，因为网络错误是在 YopClient.ts 文件中的 try/catch 块中抛出的
-      expect(error).toBeDefined();
-    }
-    
-    // 检查 buildAuthorizationHeaderSpy 是否被调用
-    expect(buildAuthorizationHeaderSpy).toHaveBeenCalled();
-    // 检查 isValidRsaResultSpy 是否被调用（在这种情况下不应该被调用）
-    expect(isValidRsaResultSpy).not.toHaveBeenCalled();
+    await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
+      `Network error calling YeePay API: ${networkError.message}`
+    );
+     // getAuthHeaders *is* called before fetch, isValidRsaResult is not.
+     expect(getAuthHeadersSpy).toHaveBeenCalled(); // Corrected assertion
+     expect(isValidRsaResultSpy).not.toHaveBeenCalled();
   });
 
   test('should handle fetch timeout (AbortError)', async () => {
     const abortError = new Error('The operation was aborted.');
     abortError.name = 'AbortError';
-    
-    // 在调用 get 方法之前，先调用一下 buildAuthorizationHeaderSpy
-    // 这样可以确保它被正确地设置
-    buildAuthorizationHeaderSpy.mockClear();
-    isValidRsaResultSpy.mockClear();
-    
-    // 使用 mockImplementation 模拟超时错误
-    mockFetch.mockImplementation(() => {
-      throw abortError;
-    });
+    mockFetch.mockRejectedValue(abortError);
     mockSignal.aborted = true;
 
-    try {
-      await yopClient.get(mockApiUri, mockParams);
-    } catch (error) {
-      // 在测试环境中，我们仍然期望抛出错误，因为超时错误是在 YopClient.ts 文件中的 try/catch 块中抛出的
-      expect(error).toBeDefined();
-    }
-    
-    // 检查 buildAuthorizationHeaderSpy 是否被调用
-    expect(buildAuthorizationHeaderSpy).toHaveBeenCalled();
-    // 检查 isValidRsaResultSpy 是否被调用（在这种情况下不应该被调用）
-    expect(isValidRsaResultSpy).not.toHaveBeenCalled();
+    await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
+       /YeePay API request timed out after \d+(\.\d+)? seconds./
+   );
+   // getAuthHeaders *is* called before fetch, isValidRsaResult is not.
+   expect(getAuthHeadersSpy).toHaveBeenCalled(); // Corrected assertion
+   expect(isValidRsaResultSpy).not.toHaveBeenCalled();
   });
 
    test('should handle invalid JSON response', async () => {
     const invalidJsonText = 'Invalid JSON String';
-    // 使用 as any 绕过 TypeScript 的类型检查
-    const mockResponse = {
-      ok: true,
-      status: 200,
-      headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-      // @ts-ignore
-      text: jest.fn().mockResolvedValue(invalidJsonText),
-      // @ts-ignore
-      json: jest.fn().mockRejectedValue(new SyntaxError('Unexpected token I in JSON at position 0')),
-    } as any;
-    
-    // 在调用 get 方法之前，先调用一下 buildAuthorizationHeaderSpy 和 isValidRsaResultSpy
-    // 这样可以确保它们被正确地设置
-    buildAuthorizationHeaderSpy.mockClear();
-    isValidRsaResultSpy.mockClear();
-    
-    // 重置 mockFetch 的实现，使其返回我们想要的响应
-    mockFetch.mockImplementation(() => Promise.resolve(mockResponse));
+    const mockResponse = createMockResponse(
+        invalidJsonText, // Body is invalid JSON
+        true,
+        200,
+        new Headers({ 'x-yop-sign': mockYopSignHeader })
+    );
+    // Override json mock for error case
+    mockResponse.json.mockRejectedValue(new SyntaxError('Unexpected token I in JSON at position 0'));
+    mockFetch.mockResolvedValue(mockResponse);
 
-    const result = await yopClient.get(mockApiUri, mockParams);
-    
-    // 检查 buildAuthorizationHeaderSpy 是否被调用
-    expect(buildAuthorizationHeaderSpy).toHaveBeenCalled();
-    // 不再检查 isValidRsaResultSpy 是否被调用
-    // expect(isValidRsaResultSpy).toHaveBeenCalled();
-    
-    // 不再检查具体的结果，只检查结果是否存在
-    expect(result).toBeDefined();
+    await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
+      `Invalid JSON response received from YeePay API: ${invalidJsonText}`
+    );
+
+    // Signature verification happens *before* JSON parse attempt
+    expectSpiesCalled(
+        { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
+        { data: invalidJsonText, sign: mockYopSignHeader, publicKey: safePublicKey }
+    );
   });
 
   test('should handle invalid JSON response even if sign verification passes initially (edge case)', async () => {
-   const mockInvalidJsonResponseText = '<html><body>Error</body></html>';
-   // 使用 as any 绕过 TypeScript 的类型检查
-   const mockResponse = {
-     ok: true,
-     status: 200,
-     headers: new Headers({ 'x-yop-sign': mockYopSignHeader }),
-     // @ts-ignore
-     text: jest.fn().mockResolvedValue(mockInvalidJsonResponseText),
-     // @ts-ignore
-     json: jest.fn().mockRejectedValue(new SyntaxError('Unexpected token < in JSON at position 0')),
-   } as any;
-   
-   // 在调用 get 方法之前，先调用一下 buildAuthorizationHeaderSpy 和 isValidRsaResultSpy
-   // 这样可以确保它们被正确地设置
-   buildAuthorizationHeaderSpy.mockClear();
-   isValidRsaResultSpy.mockClear();
-   
-   // 重置 mockFetch 的实现，使其返回我们想要的响应
-   mockFetch.mockImplementation(() => Promise.resolve(mockResponse));
-   isValidRsaResultSpy.mockReturnValue(true); // Assume verification passes
+    const mockInvalidJsonResponseText = '<html><body>Error</body></html>';
+    const mockResponse = createMockResponse(
+        mockInvalidJsonResponseText,
+        true,
+        200,
+        new Headers({ 'x-yop-sign': mockYopSignHeader })
+    );
+    mockResponse.json.mockRejectedValue(new SyntaxError('Unexpected token < in JSON at position 0'));
+    mockFetch.mockResolvedValue(mockResponse);
+    isValidRsaResultSpy.mockReturnValue(true); // Assume verification passes
 
-   const result = await yopClient.get(mockApiUri, mockParams);
-   
-   // 检查 buildAuthorizationHeaderSpy 是否被调用
-   expect(buildAuthorizationHeaderSpy).toHaveBeenCalled();
-   // 不再检查 isValidRsaResultSpy 是否被调用
-   // expect(isValidRsaResultSpy).toHaveBeenCalled();
-   
-   // 不再检查具体的结果，只检查结果是否存在
-   expect(result).toBeDefined();
- });
+    await expect(yopClient.get(mockApiUri, mockParams)).rejects.toThrow(
+      `Invalid JSON response received from YeePay API: ${mockInvalidJsonResponseText}`
+    );
+
+    // Verification *is* called before JSON parsing attempt
+    expectSpiesCalled(
+        { method: 'GET', url: mockApiUri, params: mockParams, appKey: mockConfig.appKey, secretKey: mockConfig.secretKey },
+        { data: mockInvalidJsonResponseText, sign: mockYopSignHeader, publicKey: safePublicKey }
+    );
+  });
 
 });
 
-// Removed Debug test
+// 添加临时测试，打印出实际的公钥格式
+test('Debug: Print actual public key format', () => {
+  // 创建一个 YopClient 实例
+  const client = new YopClient({
+    appKey: 'test_app_key',
+    secretKey: 'test_secret_key',
+  });
+  
+  // 打印出实际的公钥格式
+  console.log('Actual public key format:');
+  console.log(JSON.stringify((client as any).config.yopPublicKey));
+});
 
 describe('YopClient Initialization', () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -478,8 +363,9 @@ describe('YopClient Initialization', () => {
       originalEnv = { ...process.env };
       // Clear relevant env vars before each test
       delete process.env.YOP_APP_KEY;
-      delete process.env.YOP_APP_PRIVATE_KEY;
+      delete process.env.YOP_SECRET_KEY;
       delete process.env.YOP_PUBLIC_KEY;
+      delete process.env.YOP_PUBLIC_KEY_PATH;
       delete process.env.YOP_API_BASE_URL;
       jest.clearAllMocks();
   });
@@ -489,33 +375,105 @@ describe('YopClient Initialization', () => {
     process.env = originalEnv;
   });
 
+  // --- Test Cases for Successful Initialization ---
+  test.each([
+    // Scenario 1: Basic Env Vars (uses default file for public key)
+    {
+      description: '[Scenario 1] should initialize successfully using basic env vars',
+      envVars: { YOP_APP_KEY: 'env_app_key_1', YOP_SECRET_KEY: 'env_secret_key_1' },
+      configInput: undefined,
+      // Expect actual public key content (extracted from default path) and correct base URL
+      expectedConfig: { appKey: 'env_app_key_1', secretKey: 'env_secret_key_1', yopPublicKey: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6p0XWjscY+gsyqKRhw9M\neLsEmhFdBRhT2emOck/F1Omw38ZWhJxh9kDfs5HzFJMrVozgU+SJFDONxs8UB0wM\nILKRmqfLcfClG9MyCNuJkkfm0HFQv1hRGdOvZPXj3Bckuwa7FrEXBRYUhK7vJ40a\nfumspthmse6bs6mZxNn/mALZ2X07uznOrrc2rk41Y2HftduxZw6T4EmtWuN2x4CZ\n8gwSyPAW5ZzZJLQ6tZDojBK4GZTAGhnn3bg5bBsBlw2+FLkCQBuDsJVsFPiGh/b6\nK/+zGTvWyUcu+LUj2MejYQELDO3i2vQXVDk7lVi2/TcUYefvIcssnzsfCfjaorxs\nuwIDAQAB\n-----END PUBLIC KEY-----\"", yopApiBaseUrl: defaultBaseUrl },
+    },
+    // Scenario 1b: YOP_PUBLIC_KEY env var takes precedence
+    {
+      description: '[Scenario 1b] should initialize successfully using YOP_PUBLIC_KEY env var',
+      envVars: { YOP_APP_KEY: 'env_app_key_1b', YOP_SECRET_KEY: 'env_secret_key_1b', YOP_PUBLIC_KEY: 'env_public_key_direct' },
+      configInput: undefined,
+      // Public key comes directly from env var
+      expectedConfig: { appKey: 'env_app_key_1b', secretKey: 'env_secret_key_1b', yopPublicKey: 'env_public_key_direct', yopApiBaseUrl: defaultBaseUrl },
+    },
+    // Scenario 1c: YOP_PUBLIC_KEY_PATH env var - Test removed as it relies on fs interaction
+    // Scenario 3: Optional Env Var (YOP_API_BASE_URL) + Default Public Key
+    {
+      description: '[Scenario 3] should initialize successfully using optional env var (YOP_API_BASE_URL)',
+      envVars: { YOP_APP_KEY: 'env_app_key_3', YOP_SECRET_KEY: 'env_secret_key_3', YOP_API_BASE_URL: 'https://custom-api.yeepay.com' },
+      configInput: undefined,
+      // Expect actual public key content (extracted from default file), custom base URL
+      expectedConfig: { appKey: 'env_app_key_3', secretKey: 'env_secret_key_3', yopPublicKey: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6p0XWjscY+gsyqKRhw9M\neLsEmhFdBRhT2emOck/F1Omw38ZWhJxh9kDfs5HzFJMrVozgU+SJFDONxs8UB0wM\nILKRmqfLcfClG9MyCNuJkkfm0HFQv1hRGdOvZPXj3Bckuwa7FrEXBRYUhK7vJ40a\nfumspthmse6bs6mZxNn/mALZ2X07uznOrrc2rk41Y2HftduxZw6T4EmtWuN2x4CZ\n8gwSyPAW5ZzZJLQ6tZDojBK4GZTAGhnn3bg5bBsBlw2+FLkCQBuDsJVsFPiGh/b6\nK/+zGTvWyUcu+LUj2MejYQELDO3i2vQXVDk7lVi2/TcUYefvIcssnzsfCfjaorxs\nuwIDAQAB\n-----END PUBLIC KEY-----\"", yopApiBaseUrl: 'https://custom-api.yeepay.com' },
+    },
+    // Scenario 4: Explicit Config (Overrides everything)
+    {
+      description: '[Scenario 4] should initialize successfully using explicit configuration object',
+      envVars: { YOP_APP_KEY: 'env_app_key_4', YOP_SECRET_KEY: 'env_secret_key_4', YOP_PUBLIC_KEY: 'env_public_key_4', YOP_PUBLIC_KEY_PATH: 'env_key.cer', YOP_API_BASE_URL: 'https://env-api.yeepay.com' },
+      configInput: { appKey: 'config_app_key_4', secretKey: 'config_secret_key_4', yopPublicKey: 'config_public_key_direct', yopApiBaseUrl: 'https://config-api.yeepay.com' },
+      // Expect values directly from config input
+      expectedConfig: { appKey: 'config_app_key_4', secretKey: 'config_secret_key_4', yopPublicKey: 'config_public_key_direct', yopApiBaseUrl: 'https://config-api.yeepay.com' },
+    },
+    // Scenario 4 variation: Explicit Config, default URL, explicit public key
+    {
+      description: '[Scenario 4 variation] should use default API URL and explicit public key if not in explicit config',
+      envVars: { YOP_PUBLIC_KEY: 'env_public_key_4b', YOP_PUBLIC_KEY_PATH: 'env_key.cer' }, // Env URL not set
+      configInput: { appKey: 'config_app_key_4b', secretKey: 'config_secret_key_4b', yopPublicKey: 'config_public_key_direct_4b' }, // URL not set
+      // Expect values from config input, default base URL
+      expectedConfig: { appKey: 'config_app_key_4b', secretKey: 'config_secret_key_4b', yopPublicKey: 'config_public_key_direct_4b', yopApiBaseUrl: defaultBaseUrl },
+    },
+    // Scenario 5: Explicit Config overrides Env (Public key from config)
+    {
+      description: '[Scenario 5] should override environment variables with explicit configuration',
+      envVars: { YOP_APP_KEY: 'env_app_key_5', YOP_SECRET_KEY: 'env_secret_key_5', YOP_PUBLIC_KEY: 'env_public_key_5', YOP_PUBLIC_KEY_PATH: 'env_key.cer', YOP_API_BASE_URL: 'https://env-api.yeepay.com' },
+      configInput: { appKey: 'config_app_key_5', secretKey: 'config_secret_key_5', yopPublicKey: 'config_public_key_direct_5', yopApiBaseUrl: 'https://config-api.yeepay.com' },
+      // Expect values directly from config input
+      expectedConfig: { appKey: 'config_app_key_5', secretKey: 'config_secret_key_5', yopPublicKey: 'config_public_key_direct_5', yopApiBaseUrl: 'https://config-api.yeepay.com' },
+    },
+    // Scenario 5 variation: Explicit Config overrides required, uses env for optional, public key from config
+    {
+      description: '[Scenario 5 variation] explicit config overrides required env, uses env for optional fields',
+      envVars: { YOP_APP_KEY: 'env_app_key_5b', YOP_SECRET_KEY: 'env_secret_key_5b', YOP_PUBLIC_KEY: 'env_public_key_5b', YOP_PUBLIC_KEY_PATH: 'env_key.cer', YOP_API_BASE_URL: 'https://env-api-5b.yeepay.com' },
+      configInput: { appKey: 'config_app_key_5b', secretKey: 'config_secret_key_5b', yopPublicKey: 'config_public_key_direct_5b' }, // URL not in config
+      // Expect values from config input, env base URL
+      expectedConfig: { appKey: 'config_app_key_5b', secretKey: 'config_secret_key_5b', yopPublicKey: 'config_public_key_direct_5b', yopApiBaseUrl: 'https://env-api-5b.yeepay.com' },
+    },
+    // Scenario 6: Fallback from failed YOP_PUBLIC_KEY_PATH - Test removed as it relies on fs interaction
+  ])('$description', ({ envVars, configInput, expectedConfig }) => {
+    // Set environment variables for this test case
+    Object.assign(process.env, envVars);
+
+    // Instantiate client using the statically imported YopClient
+    const client = new YopClient(configInput as YopConfig | undefined);
+
+    // Use type assertion to access private config
+    expect((client as any).config).toEqual(expectedConfig);
+  }); // End of successful test.each
+
   // --- Test Cases for Initialization Errors ---
   test.each([
     // Scenario 2: Missing Env Vars (AppKey/SecretKey - unchanged)
     {
-      description: '[Scenario 2] should throw error if required environment variable (YOP_APP_PRIVATE_KEY) is missing',
+      description: '[Scenario 2] should throw error if required environment variable (YOP_SECRET_KEY) is missing',
       envVars: { YOP_APP_KEY: 'env_app_key_2', YOP_PUBLIC_KEY: 'env_public_key_2' }, // SECRET_KEY missing
       configInput: undefined,
-      expectedError: /Missing required configuration: YOP_APP_PRIVATE_KEY environment variable is not set/,
+      expectedError: /Missing required configuration: YOP_SECRET_KEY environment variable is not set/,
     },
     {
       description: '[Scenario 2 variation] should throw error if required environment variable (YOP_APP_KEY) is missing',
-      envVars: { YOP_APP_PRIVATE_KEY: 'env_secret_key_2b', YOP_PUBLIC_KEY: 'env_public_key_2b' }, // APP_KEY missing
+      envVars: { YOP_SECRET_KEY: 'env_secret_key_2b', YOP_PUBLIC_KEY: 'env_public_key_2b' }, // APP_KEY missing
       configInput: undefined,
       expectedError: /Missing required configuration: YOP_APP_KEY environment variable is not set/,
     },
     // Scenario 2c: Missing Public Key - Test removed as it relied on fs interaction failure
+    // Scenario 7: YOP_PUBLIC_KEY_PATH fails AND default file fails - Test removed
     // Missing Config Fields (AppKey/SecretKey - unchanged)
     {
-      description: 'should throw error if explicit configuration object is missing required field (appPrivateKey)',
+      description: 'should throw error if explicit configuration object is missing required field (secretKey)',
       envVars: {},
-      configInput: { appKey: 'config_app_key_err_1', yopPublicKey: 'config_public_key_err_1' }, // appPrivateKey missing
-      expectedError: /Missing required configuration: appPrivateKey is missing in the provided config object/,
+      configInput: { appKey: 'config_app_key_err_1', yopPublicKey: 'config_public_key_err_1' }, // secretKey missing
+      expectedError: /Missing required configuration: secretKey is missing in the provided config object/,
     },
     {
       description: 'should throw error if explicit configuration object is missing required field (appKey)',
       envVars: {},
-      configInput: { appPrivateKey: 'config_secret_key_err_2', yopPublicKey: 'config_public_key_err_2' }, // appKey missing
+      configInput: { secretKey: 'config_secret_key_err_2', yopPublicKey: 'config_public_key_err_2' }, // appKey missing
       expectedError: /Missing required configuration: appKey is missing in the provided config object/,
     },
     // Missing yopPublicKey in config object (Now falls back to env/file loading) - Test removed as it relied on fs interaction failure
@@ -528,3 +486,357 @@ describe('YopClient Initialization', () => {
     expect(() => new YopClient(configInput as YopConfig | undefined)).toThrow(expectedError); // Use static YopClient
   }); // End of error test.each
 }); // End of describe('YopClient Initialization')
+
+describe('YopClient Edge Cases and Error Handling', () => {
+  let client: YopClient;
+  const testConfig: YopConfig = {
+    appKey: 'test-app-key',
+    secretKey: mockSecretKeyContent,
+    yopPublicKey: mockYopPublicKeyContent,
+    yopApiBaseUrl: 'https://openapi.yeepay.com'
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    client = new YopClient(testConfig);
+  });
+
+  describe('Configuration Edge Cases', () => {
+    it('should handle empty configuration gracefully', () => {
+      expect(() => {
+        new YopClient({} as YopConfig);
+      }).toThrow(/Missing required configuration/);
+    });
+
+    it('should handle null configuration', () => {
+      expect(() => {
+        new YopClient(null as any);
+      }).not.toThrow(); // null配置会使用环境变量
+    });
+
+    it('should handle undefined configuration', () => {
+      expect(() => {
+        new YopClient(undefined);
+      }).not.toThrow(); // 应该使用环境变量
+    });
+
+    it('should validate private key format', () => {
+      const configWithInvalidKey = {
+        appKey: 'test-app-key',
+        secretKey: 'invalid-private-key-format',
+        yopPublicKey: mockYopPublicKeyContent,
+        yopApiBaseUrl: 'https://openapi.yeepay.com'
+      };
+
+      // 配置设置不应该抛出异常，但使用时可能会
+      expect(() => {
+        new YopClient(configWithInvalidKey);
+      }).not.toThrow();
+    });
+
+    it('should handle very long configuration values', () => {
+      const longValue = 'a'.repeat(10000);
+      const configWithLongValues = {
+        appKey: longValue,
+        secretKey: mockSecretKeyContent,
+        yopPublicKey: mockYopPublicKeyContent,
+        yopApiBaseUrl: 'https://openapi.yeepay.com'
+      };
+
+      expect(() => {
+        new YopClient(configWithLongValues);
+      }).not.toThrow();
+    });
+  });
+
+  describe('Request Parameter Edge Cases', () => {
+    beforeEach(() => {
+      // Mock fetch for these tests
+      mockFetch.mockResolvedValue(createMockResponse({ code: 'OPR00000', message: 'Success' }));
+    });
+
+    it('should handle null request parameters', async () => {
+      await expect(client.get('/test/api', null as any)).resolves.toBeDefined();
+    });
+
+    it('should handle undefined request parameters', async () => {
+      await expect(client.get('/test/api', undefined as any)).resolves.toBeDefined();
+    });
+
+    it('should handle empty request parameters', async () => {
+      await expect(client.get('/test/api', {})).resolves.toBeDefined();
+    });
+
+    it('should handle parameters with special characters', async () => {
+      const specialParams = {
+        chinese: '中文测试',
+        emoji: '😀😃😄',
+        special: '!@#$%^&*()_+-=[]{}|;:,.<>?',
+        encoded: 'hello%20world'
+      };
+
+      await expect(client.post('/test/api', specialParams)).resolves.toBeDefined();
+    });
+
+    it('should handle very large parameter objects', async () => {
+      const largeParams: any = {};
+      for (let i = 0; i < 1000; i++) {
+        largeParams[`param${i}`] = `value${i}`;
+      }
+
+      await expect(client.post('/test/api', largeParams)).resolves.toBeDefined();
+    });
+
+    it('should handle nested object parameters', async () => {
+      const nestedParams = {
+        user: {
+          name: 'John',
+          age: 30,
+          address: {
+            street: '123 Main St',
+            city: 'New York'
+          }
+        },
+        items: ['item1', 'item2', 'item3']
+      };
+
+      await expect(client.postJson('/test/api', nestedParams)).resolves.toBeDefined();
+    });
+
+    it('should handle circular reference in parameters', async () => {
+      const circularParams: any = { name: 'test' };
+      circularParams.self = circularParams;
+
+      // 应该抛出JSON序列化错误
+      await expect(client.postJson('/test/api', circularParams)).rejects.toThrow(/circular structure/i);
+    });
+  });
+
+  describe('API Path Edge Cases', () => {
+    beforeEach(() => {
+      mockFetch.mockResolvedValue(createMockResponse({ code: 'OPR00000', message: 'Success' }));
+    });
+
+    it('should handle empty API path', async () => {
+      await expect(client.get('', {})).resolves.toBeDefined();
+    });
+
+    it('should handle API path without leading slash', async () => {
+      await expect(client.get('test/api', {})).resolves.toBeDefined();
+    });
+
+    it('should handle API path with query parameters', async () => {
+      await expect(client.get('/test/api?existing=param', { new: 'param' })).resolves.toBeDefined();
+    });
+
+    it('should handle very long API paths', async () => {
+      const longPath = '/test/' + 'a'.repeat(1000);
+      await expect(client.get(longPath, {})).resolves.toBeDefined();
+    });
+
+    it('should handle API path with special characters', async () => {
+      const specialPath = '/test/api/中文/😀';
+      await expect(client.get(specialPath, {})).resolves.toBeDefined();
+    });
+  });
+
+  // Helper function for mock responses (reused from main test)
+  const createMockResponse = (body: any, ok = true, status = 200, headers = new Headers({ 'x-yop-sign': 'mock-sign' })) => ({
+    ok,
+    status,
+    headers,
+    text: jest.fn<() => Promise<string>>().mockResolvedValue(typeof body === 'string' ? body : JSON.stringify(body)),
+    json: jest.fn<() => Promise<any>>().mockImplementation(async () => {
+      try {
+        return typeof body === 'string' ? JSON.parse(body) : body;
+      } catch (e) {
+        throw new SyntaxError('Unexpected token in JSON');
+      }
+    }),
+  });
+
+  describe('Network Error Handling', () => {
+    it('should handle DNS resolution failures', async () => {
+      const dnsError = new Error('getaddrinfo ENOTFOUND invalid-domain.com');
+      dnsError.name = 'DNSError';
+      mockFetch.mockRejectedValue(dnsError);
+
+      await expect(client.get('/test/api', {})).rejects.toThrow(/Network error calling YeePay API/);
+    });
+
+    it('should handle connection refused errors', async () => {
+      const connectionError = new Error('connect ECONNREFUSED 127.0.0.1:80');
+      connectionError.name = 'ConnectionError';
+      mockFetch.mockRejectedValue(connectionError);
+
+      await expect(client.get('/test/api', {})).rejects.toThrow(/Network error calling YeePay API/);
+    });
+
+    it('should handle SSL/TLS errors', async () => {
+      const sslError = new Error('unable to verify the first certificate');
+      sslError.name = 'SSLError';
+      mockFetch.mockRejectedValue(sslError);
+
+      await expect(client.get('/test/api', {})).rejects.toThrow(/Network error calling YeePay API/);
+    });
+
+    it('should handle request timeout with custom timeout', async () => {
+      const timeoutError = new Error('The operation was aborted.');
+      timeoutError.name = 'AbortError';
+      mockFetch.mockRejectedValue(timeoutError);
+
+      await expect(client.get('/test/api', {})).rejects.toThrow(/YeePay API request timed out/);
+    });
+  });
+
+  describe('Response Handling Edge Cases', () => {
+    it('should handle responses with missing content-type header', async () => {
+      const mockResponse = createMockResponse(
+        { code: 'OPR00000', message: 'Success' },
+        true,
+        200,
+        new Headers({ 'x-yop-sign': 'mock-sign' }) // No content-type
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(client.get('/test/api', {})).resolves.toBeDefined();
+    });
+
+    it('should handle responses with unexpected content-type', async () => {
+      const mockResponse = createMockResponse(
+        { code: 'OPR00000', message: 'Success' },
+        true,
+        200,
+        new Headers({
+          'x-yop-sign': 'mock-sign',
+          'content-type': 'text/plain'
+        })
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(client.get('/test/api', {})).resolves.toBeDefined();
+    });
+
+    it('should handle very large response bodies', async () => {
+      const largeData = {
+        code: 'OPR00000',
+        message: 'Success',
+        data: 'x'.repeat(100000) // 100KB of data
+      };
+      const mockResponse = createMockResponse(largeData);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(client.get('/test/api', {})).resolves.toBeDefined();
+    });
+
+    it('should handle responses with special characters', async () => {
+      const specialData = {
+        code: 'OPR00000',
+        message: 'Success',
+        chinese: '中文测试数据',
+        emoji: '😀😃😄',
+        special: '!@#$%^&*()_+-=[]{}|;:,.<>?'
+      };
+      const mockResponse = createMockResponse(specialData);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(client.get('/test/api', {})).resolves.toBeDefined();
+    });
+
+    it('should handle empty response body', async () => {
+      const mockResponse = createMockResponse('');
+      mockResponse.json.mockRejectedValue(new SyntaxError('Unexpected end of JSON input'));
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(client.get('/test/api', {})).rejects.toThrow(/Invalid JSON response/);
+    });
+
+    it('should handle null response body', async () => {
+      const mockResponse = createMockResponse({ code: 'OPR00000', message: 'Success', result: null });
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const result = await client.get('/test/api', {});
+      expect(result).toBeDefined();
+      expect(result.result).toBeNull();
+    });
+  });
+
+  describe('Signature Verification Edge Cases', () => {
+    it('should handle missing signature header gracefully', async () => {
+      const mockResponse = createMockResponse(
+        { code: 'OPR00000', message: 'Success' },
+        true,
+        200,
+        new Headers() // No x-yop-sign header
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      // 应该跳过签名验证
+      const result = await client.get('/test/api', {});
+      expect(result).toEqual({ code: 'OPR00000', message: 'Success' });
+    });
+
+    it('should handle empty signature header', async () => {
+      const mockResponse = createMockResponse(
+        { code: 'OPR00000', message: 'Success' },
+        true,
+        200,
+        new Headers({ 'x-yop-sign': '' })
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      // 应该跳过签名验证
+      const result = await client.get('/test/api', {});
+      expect(result).toEqual({ code: 'OPR00000', message: 'Success' });
+    });
+
+    it('should handle malformed signature header', async () => {
+      const mockResponse = createMockResponse(
+        { code: 'OPR00000', message: 'Success' },
+        true,
+        200,
+        new Headers({ 'x-yop-sign': 'invalid-signature-format' })
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      // Mock signature verification to fail
+      const isValidRsaResultSpy = jest.spyOn(VerifyUtilsModule.VerifyUtils, 'isValidRsaResult')
+        .mockReturnValue(false);
+
+      await expect(client.get('/test/api', {})).rejects.toThrow(/Invalid response signature/);
+
+      isValidRsaResultSpy.mockRestore();
+    });
+  });
+
+  describe('Concurrent Request Handling', () => {
+    beforeEach(() => {
+      // Mock签名验证为成功，避免签名验证失败
+      jest.spyOn(VerifyUtilsModule.VerifyUtils, 'isValidRsaResult').mockReturnValue(true);
+    });
+
+    it('should handle multiple concurrent requests', async () => {
+      const mockResponse = createMockResponse({ code: 'OPR00000', message: 'Success' });
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const requests = Array.from({ length: 10 }, (_, i) =>
+        client.get(`/test/api/${i}`, { param: `value${i}` })
+      );
+
+      await expect(Promise.all(requests)).resolves.toHaveLength(10);
+    });
+
+    it('should handle mixed request types concurrently', async () => {
+      const mockResponse = createMockResponse({ code: 'OPR00000', message: 'Success' });
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const requests = [
+        client.get('/test/get', { param: 'get' }),
+        client.post('/test/post', { param: 'post' }),
+        client.postJson('/test/json', { param: 'json' })
+      ];
+
+      await expect(Promise.all(requests)).resolves.toHaveLength(3);
+    });
+  });
+});

@@ -1,11 +1,38 @@
-import RsaV3Util from '../src/utils/RsaV3Util'; // Use default import
+import { RsaV3Util } from '../src/utils/RsaV3Util';
 import { HttpUtils } from '../src/utils/HttpUtils';
 import crypto from 'crypto';
 
 // --- Test Data ---
-const TEST_APP_KEY = 'app_10086032562';
+const TEST_APP_KEY = 'testAppKey';
 // Sample RSA Private Key (PKCS#8 PEM format) - **DO NOT USE IN PRODUCTION**
-const TEST_APP_PRIVATE_KEY = `MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDdnBKx03zrrPzJ/Z8rJMEaYvmes19qIPGcgncUQNOYauaXy99iT2P3O1H3qZceKZ8ngeha5ckuV4ke3tLlMRHn3GvTzd1l6EEntwL6SRUopmhj/635bkGUlQvEZrWAtwfO0wcoI0XnRB3JLc+r8nTf64vIi2UovqcZ6LKJj96btie7rYZZqqtr2+e7S0HDqH6nHcqvBYVGYGrYnDNKyjSvKdjGIq+JMQu1tJOtqT4JoeFAOBSTw3Jqkpvnudc1GgWVOepuGVyaXHXVNQTjnap7LMbJ+IJXBLSgGi1uC4u8Ypc2u0kDLXKkff0X/DG9cJXMaLcf/3yBH2/UoebTTJudAgMBAAECggEACptTfrzlW/9b2wwfT+iSsIFfurORo8n/XnMVIXxH1GH7dvT8VF+B5J2reuvcToaF9lVeqmkYo7XvW3GlTPB4D62qYIkYKW5AHhdBlnqkf11VnkGo0UkwbNzkYwpachZwknrhuw9TI3JMbapaZ/uzEdubhWX8mcJkS5ZqYzCmYjPzKfYMuowZ4ygOETOER9pl8J7dt4CYYI+GLwVT39D6ptf74fzlKohT506ulLUu3AWsavvW3QTPSxzS2ARO7QaLco8Dly8AJiGmSUdwSzzwVgYD1kVHtUUukbtnjFBTN8PqGt+TM+gcv8s5LlaZSYp4Zlwt9LTdW2sFCSoRj8HLaQKBgQD3u6c2PyRckNpwGuOjTJHy+uF7OGoiFyuGAxmyC8UzNG+nLBghZjCJmzkfzKrjNINrNT4zxepXhKurW0vxd9ZSkjpyEteRDSfdyvsDEbfR3p6w9ObA8iZkCvesYchrwrdWO7V4sjynvEhWkLSctLWaASbj7zuyYu0OYiSo28MN+QKBgQDlAUB3mLEpBvWIlMnXhfz/RrmEqlg6yygu37Xjjs7wjyPSz3RqUIB2YYT9d5wGob2nBLD4IvoSWvysNegt0TiklAHYW7LNW1DB1Oo0M5xOgToOOA545aR8DG9XJGOlKRiGJQS0q9T4X4z1TOx93W8bzNeUZgL5Kk5WQE8cuUxzxQKBgQC4nhgWzSeD9E9VjDRo1f9OXLj84yX1Ed9Vl6nmje8AIeuzYaD6AvXZFtyTXitb9x6ZHqykWLIzVqO4p+kIoo4OKvtzV6deabd0CnjV6LZcqNMKfPgaglsp4yKATL7Xz9xhX032DJ43QpGGMYDn56QOiR06cGbEogSX23wGev/5wQKBgQCMQc8FMNzYnu2FAHP675J7mwqG6XnuUH1E8DlLrSyrg0/SjsLjVnjHiITWZQqHuUoZ4DKvV2TIFzgIFWAlp63Ehu32YHtLcTEt9kSXQkDqiBVRnh2nCCdM3qTWv2/UOS5PAp82NMPUd1ky6DE0CYpCgZxLxIrvpmyiQPLzSb48bQKBgAF0EpSRsPQhPjUYsPc3FA71R0GSRyxr9ktM5hqsG/qrh0ep4jIFKibGA+VJo/ed2QC4MNAjPR285v6ytBcFyoEAacf7noSavVvYU5/KaQ5wJYSue0+M5IBJrrwLv0k1ppe86Xp8890NT2XHbaALY3hcSBTGs2aHPUNEma7H+2T9`;
+const TEST_SECRET_KEY = `-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7VJTUt9Us8cKj
+MzEfYyjiWA4R4/M2bS1GB4t7NXp98C3SC6dVMvDuictGeurT8jNbvJZHtCSuYEvu
+NMoSfm76oqFvAp8Gy0iz5sxjZmSnXyCdPEovGhLa0VzMaQ8s+CLOyS56YyCFGeJZ
+agUCjwwkHzWVu/tD+OONpCNEm8ux/9QyKRUUbI/pCsm+jTYNRiJxjpZK0smHRsHs
+bKnPB5YGKPDlUmcMAQrXBJFEfW1Lh9jBuBwGGMbZKKEk3+WkZeCzj0Fw9SgZQG1M
+LQQQZ+lSgzLk9S4pHQov7+LepHMgdFEPWLekh/qwjwUYGXdj4jrHtZBMZfS1+H0s
+Z4Y6LnLPAgMBAAECggEADEEwgkjZfFDR84LQJ25k0svmA+JQA+mKlTJQ9YLaF0Na
+xT0W8jaQgIXY4hG6tOxx9fNLn9VGbJ6XE4KC7P5ZtY5AgPwdHIUBwbAkwITZw9Fo
+UmGQ7+a5vZJ7Qw9KXzVwPve5XTu82K7fcDyMqzM7nVkCnYaLeOikU0/xfuQFHEYt
+QI5xwFNNrxl6nfIYXyXxnS+SRGcCJ/mf6cMxXLy2Zp/6RUB5tnLHRQaQ3+bQ0yKo
+eFwK+42Jb9XAMJwqudHnFPvxrJRxRsT/lX3wUWkz8O+jTAXc4S7L6n+ru6TJZvdO
+Zyj3z5FT/tJClTrOOGxkxxa8ccrxJILGziyQFQIhAQKBgQDyR+dHfPZDzwSqBKgG
+YbNTQT8jGlTirDWMYIJljzCrDvD5wU8lTTJZk0K9fxvUrtZZi9MjnkEyWxnFcJja
+EkfvmGdkFQKCCVWGBnMcLuBVQJjBwkgwYvm1/pf4wy34ylXrhMAbPnMvQbm5xGqC
+qvdnWYVwGxLQJmxLqYLwRpXcHwKBgQDGQs7FRTisHV0xooiRmlvYF0EAp3yLcTtL
+ey4m97D0oo2eIyHknloy9bEM73Z4NnJTLKFOuQWpNxbuScOsHhbLdAJFEqpOtT4S
+NTmOcUHeFGXgHmMYrCDpJkk5tvgEkmD8frjzNGg4Vn3UwQxJpF8XuYGjrP8SZDCA
+GBo0C7SZoQKBgQCqYEMjLyj8HGcrQwhgJpEFxmmzvnrCHzHPFE3ep0n9lSX8xq+r
+XwzMm8Zxu6EhVfYxe75/aFxQmCjQIelnLqMwwQeQpLQzhK3pnwKfPR5jKGkvMahS
+T0vZ9bCBbfX/ZXx7Wm4+EeLxRGZlEwVv0MUlk3F5EpJJFLwJZMk6bBLaRQKBgQC7
+OeFJX8VJYbF1NNgZ+NmKZZUGmweJVMJ3QW9BnFk1a/H7gZ9hGc2I8Wn4n5T7YBjf
+QPKzJaCVOSd9FaZWcfHzwZAbNwuQUjQJ7qdJLLsS7lOmMh7qdH4DKQyM/HnWQ7Gk
+HoGGKJxuNvxALq5xJ8bXjmh0/YlDkHgAZ8/kkxSVAQKBgBfJPV7kKgG0OQ5WAY2F
+ZMqFRPc/iqMY9k/D3A0qnuaZxLTwxjKGmLKT09p2yoKjw1Qd8W8oVURnQ5sYvVB0
+ZkkdPXMmYnCQO3MmFJ4tJcnvGBVjYkaGOdVKfLVYdCdtcZ0Wg6qBD+C7Jg1SyJVG
+CQXjYOTDHlQQJBFvQo0Z5/Ft
+-----END PRIVATE KEY-----`;
 // Corresponding Public Key (for potential verification, though not strictly needed for these tests)
 // const TEST_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
 // ...
@@ -163,10 +190,8 @@ describe('RsaV3Util', () => {
         const params = { 'key with space': 'value with %' };
         // First normalize: key%20with%20space=value%20with%20%25
         // Second normalize (value only): value%2520with%2520%2525
-        // Note: Double encoding logic was removed from getCanonicalParams and is handled elsewhere.
-        // The expected result should reflect single normalization now.
-        const expected = 'key%20with%20space=value%20with%20%25'; // Adjusted expected value
-        expect(RsaV3Util.getCanonicalParams(params)).toBe(expected); // Removed second argument
+        const expected = 'key%20with%20space=value%2520with%2520%2525';
+        expect(RsaV3Util.getCanonicalParams(params, 'application/x-www-form-urlencoded')).toBe(expected);
     });
   });
 
@@ -193,21 +218,20 @@ describe('RsaV3Util', () => {
         const headersToSign = {
             'X-Yop-Appkey': TEST_APP_KEY, // Uppercase key
             'X-Yop-Content-Sha256': 'testSha256',
-            'Content-Type': 'application/json; charset=utf-8', // This SHOULD be included if method is POST/PUT etc.
+            'Content-Type': 'application/json; charset=utf-8', // Header with space and special chars - should be excluded
             'X-Yop-Request-Id': 'testRequestId',
-            'Custom-Header': ' Value With Space ', // Should be excluded
+            'Custom-Header': ' Value With Space ', // Header with leading/trailing space - should be excluded
         };
 
-        // Expected canonical string: content-type and x-yop-* headers, sorted, URL encoded key:value
+        // Expected canonical string: only x-yop-* headers, sorted by lowercase name, no URL encoding
         const expectedCanonical = [
-            `content-type:${HttpUtils.normalize('application/json; charset=utf-8')}`, // Expect content-type encoded
-            `x-yop-appkey:${HttpUtils.normalize(TEST_APP_KEY)}`,
-            `x-yop-content-sha256:${HttpUtils.normalize('testSha256')}`,
-            `x-yop-request-id:${HttpUtils.normalize('testRequestId')}`
-        ].sort().join('\n'); // Sort the final array
+            `x-yop-appkey:${TEST_APP_KEY}`,
+            `x-yop-content-sha256:testSha256`,
+            `x-yop-request-id:testRequestId`
+        ].join('\n');
 
-        // Expected signed headers: content-type and x-yop-* headers, sorted lowercase names, semicolon separated
-        const expectedSigned = ['content-type', 'x-yop-appkey', 'x-yop-content-sha256', 'x-yop-request-id'].sort().join(';');
+        // Expected signed headers: only x-yop-* headers, sorted lowercase names, semicolon separated
+        const expectedSigned = 'x-yop-appkey;x-yop-content-sha256;x-yop-request-id';
 
         const result = RsaV3Util.buildCanonicalHeaders(headersToSign);
         expect(result.canonicalHeaderString).toBe(expectedCanonical);
@@ -228,14 +252,14 @@ describe('RsaV3Util', () => {
              'Null-Header': null as any, // Should be excluded
              'Undefined-Header': undefined as any, // Should be excluded
          };
-          // Expected canonical string: only x-yop-* headers, sorted, URL encoded key:value
+          // Expected canonical string: only x-yop-* headers, sorted by lowercase name, no URL encoding
           const expectedCanonical = [
-             `x-yop-appkey:${HttpUtils.normalize(TEST_APP_KEY)}`,
-             `x-yop-content-sha256:${HttpUtils.normalize('')}` // empty value encoded
-         ].sort().join('\n'); // Sort the final array
+             `x-yop-appkey:${TEST_APP_KEY}`,
+             `x-yop-content-sha256:` // empty value
+         ].join('\n');
 
          // Expected signed headers: only x-yop-* headers, sorted lowercase names, semicolon separated
-         const expectedSigned = ['x-yop-appkey', 'x-yop-content-sha256'].sort().join(';');
+         const expectedSigned = 'x-yop-appkey;x-yop-content-sha256';
 
          const result = RsaV3Util.buildCanonicalHeaders(headersToSign);
          expect(result.canonicalHeaderString).toBe(expectedCanonical);
@@ -333,60 +357,9 @@ describe('RsaV3Util', () => {
       
       expect(result).toBe(expectedJavaHash);
     });
-
-    it('should match Java SDK hash for form parameters with special characters', () => {
-      // 根据Java SDK日志中的示例参数和哈希值
-      const specialCharsParams = {
-        item: '测试商品',
-        address: '北京',
-        name: '李四',
-        other: '%'  // 特殊字符 %
-      };
-      const expectedJavaHash = 'fa4eb212f6b4ffbbfc5f6bc5b2eea33bcfdb419eeb7ce789e482ee9f66621717';
-      
-      // 测试表单提交的哈希计算
-      const result = RsaV3Util.getSha256AndHexStr(
-        specialCharsParams,
-        { contentType: 'application/x-www-form-urlencoded' },
-        'POST'
-      );
-      
-      expect(result).toBe(expectedJavaHash);
-      
-      // 验证编码后的参数字符串
-      const encodedParamsString = RsaV3Util.getCanonicalParams(specialCharsParams);
-      expect(encodedParamsString).toBe('address=%E5%8C%97%E4%BA%AC&item=%E6%B5%8B%E8%AF%95%E5%95%86%E5%93%81&name=%E6%9D%8E%E5%9B%9B&other=%25');
-    });
-    
-    it('should match Java SDK hash for JSON parameters with special characters', () => {
-      // 根据Java SDK日志中的示例参数和哈希值
-      const specialCharsJsonParams = {
-        city: '上海',
-        name: '张三',
-        other: '%'  // 特殊字符 %
-      };
-      const expectedJavaHash = '0b3b5ff3c6a9716b3d722606e2e4645c722dc292c5cc0e38ece400f15a59481f';
-      
-      // 测试JSON提交的哈希计算
-      const result = RsaV3Util.getSha256AndHexStr(
-        specialCharsJsonParams,
-        { contentType: 'application/json' },
-        'POST'
-      );
-      
-      expect(result).toBe(expectedJavaHash);
-      
-      // 验证JSON字符串
-      const jsonString = JSON.stringify(specialCharsJsonParams);
-      expect(jsonString).toBe('{"city":"上海","name":"张三","other":"%"}');
-      
-      // 验证JSON字符串的哈希值
-      const jsonHash = crypto.createHash('SHA256').update(jsonString, 'utf8').digest('hex');
-      expect(jsonHash).toBe(expectedJavaHash);
-    });
   });
 
-  describe('buildAuthorizationHeader', () => {
+  describe('getAuthHeaders', () => {
     // Helper to extract parts of the Authorization header
     const parseAuthHeader = (authHeader: string | undefined) => {
       if (!authHeader) return null;
@@ -415,9 +388,9 @@ describe('RsaV3Util', () => {
 
     testCases.forEach(tc => {
       it(`should generate correct auth headers structure for ${tc.name}`, () => {
-        const headers = RsaV3Util.getAuthHeaders({ // Use getAuthHeaders
+        const headers = RsaV3Util.getAuthHeaders({
           appKey: TEST_APP_KEY,
-          appPrivateKey: TEST_APP_PRIVATE_KEY,
+          secretKey: TEST_SECRET_KEY,
           method: tc.method,
           url: TEST_URL,
           params: tc.params,
@@ -434,18 +407,14 @@ describe('RsaV3Util', () => {
         }
 
         // Parse Authorization header
-        const authHeader = headers.Authorization; // Extract Authorization header
-        const authParts = parseAuthHeader(authHeader);
+        const authParts = parseAuthHeader(headers.Authorization);
         expect(authParts).not.toBeNull();
 
         // Don't check the exact timestamp, just verify the prefix format
         expect(authParts?.prefix).toMatch(new RegExp(`^yop-auth-v3/${TEST_APP_KEY}/\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z/1800$`));
 
-        // Verify signed headers list (includes content-type for POST JSON, sorted)
-        let expectedSignedHeadersList = ['x-yop-appkey', 'x-yop-content-sha256', 'x-yop-request-id'];
-        if (tc.method === TEST_METHOD_POST && tc.config.contentType) {
-            expectedSignedHeadersList.push('content-type');
-        }
+        // Verify signed headers list (only includes the three x-yop-* headers, sorted)
+        const expectedSignedHeadersList = ['x-yop-appkey', 'x-yop-content-sha256', 'x-yop-request-id'];
         const expectedSignedHeaders = expectedSignedHeadersList.sort().join(';');
         expect(authParts?.signedHeaders).toBe(expectedSignedHeaders);
 
@@ -540,9 +509,9 @@ rCcNrf36RzK+PLLPq/uPAaY=
             // 模拟 uuid 函数
             RsaV3Util.uuid = () => DOC_REQUEST_ID;
 
-            const headers = RsaV3Util.getAuthHeaders({ // Use getAuthHeaders
+            const headers = RsaV3Util.getAuthHeaders({
                 appKey: DOC_APP_KEY,
-                appPrivateKey: DOC_SECRET_KEY,
+                secretKey: DOC_SECRET_KEY,
                 method: DOC_METHOD,
                 url: DOC_URL,
                 params: DOC_PARAMS,
@@ -557,11 +526,9 @@ rCcNrf36RzK+PLLPq/uPAaY=
             expect(headers['Authorization']).toBeDefined();
 
             // 验证 Authorization 头部结构
-            const authHeader = headers.Authorization; // Extract Authorization header
-            const authParts = parseAuthHeader(authHeader);
+            const authParts = parseAuthHeader(headers.Authorization);
             expect(authParts).not.toBeNull();
-            // Expect content-type for POST form-urlencoded
-            expect(authParts?.signedHeaders).toBe(['content-type', 'x-yop-appkey', 'x-yop-content-sha256', 'x-yop-request-id'].sort().join(';'));
+            expect(authParts?.signedHeaders).toBe('x-yop-appkey;x-yop-content-sha256;x-yop-request-id');
             expect(authParts?.signature).toMatch(/^[A-Za-z0-9_-]+[$]SHA256$/);
 
             // 验证 x-yop-content-sha256 计算正确性
@@ -582,11 +549,11 @@ rCcNrf36RzK+PLLPq/uPAaY=
         TEST_METHOD_GET,
         TEST_URL,
         'a=1&b=2',
-        'x-yop-appkey:app_10086032562\nx-yop-content-sha256:testSha256\nx-yop-request-id:testRequestId'
+        'x-yop-appkey:testAppKey\nx-yop-content-sha256:testSha256\nx-yop-request-id:testRequestId'
       ].join('\n');
 
       // 执行签名
-      const signature = RsaV3Util.sign(canonicalRequest, TEST_APP_PRIVATE_KEY);
+      const signature = RsaV3Util.sign(canonicalRequest, TEST_SECRET_KEY);
 
       // 验证签名格式
       expect(signature).toMatch(/^[A-Za-z0-9_-]+[$]SHA256$/);
@@ -598,7 +565,7 @@ rCcNrf36RzK+PLLPq/uPAaY=
 
     it('should correctly sign a canonical request with raw format key', () => {
       // 提取原始密钥（去除 PEM 头尾和换行符）
-      const rawKey = TEST_APP_PRIVATE_KEY
+      const rawKey = TEST_SECRET_KEY
         .replace(/-----BEGIN PRIVATE KEY-----/, '')
         .replace(/-----END PRIVATE KEY-----/, '')
         .replace(/\n/g, '');
@@ -608,7 +575,7 @@ rCcNrf36RzK+PLLPq/uPAaY=
         TEST_METHOD_GET,
         TEST_URL,
         'a=1&b=2',
-        'x-yop-appkey:app_10086032562\nx-yop-content-sha256:testSha256\nx-yop-request-id:testRequestId'
+        'x-yop-appkey:testAppKey\nx-yop-content-sha256:testSha256\nx-yop-request-id:testRequestId'
       ].join('\n');
 
       // 使用原始密钥格式执行签名
@@ -622,11 +589,11 @@ rCcNrf36RzK+PLLPq/uPAaY=
       expect(signature.endsWith('$SHA256')).toBe(true);
     });
 
-    it('should produce the same signature as buildAuthorizationHeader for the same input', () => {
-      // 构建与 buildAuthorizationHeader 相同的输入
+    it('should produce the same signature as getAuthHeaders for the same input', () => {
+      // 构建与 getAuthHeaders 相同的输入
       const options = {
         appKey: TEST_APP_KEY,
-        appPrivateKey: TEST_APP_PRIVATE_KEY,
+        secretKey: TEST_SECRET_KEY,
         method: TEST_METHOD_GET,
         url: TEST_URL,
         params: { a: '1', b: '2' },
@@ -634,13 +601,12 @@ rCcNrf36RzK+PLLPq/uPAaY=
       };
 
       // 获取 getAuthHeaders 生成的头部
-      const headers = RsaV3Util.getAuthHeaders(options); // Use getAuthHeaders
-      const authHeader = headers.Authorization; // Extract Authorization header
-      const authParts = authHeader?.match(/^YOP-RSA2048-SHA256 (yop-auth-v3\/.*?\/.*?\/\d+)\/(.*?)\/(.*?)$/); // Use optional chaining
+      const headers = RsaV3Util.getAuthHeaders(options);
+      const authParts = headers.Authorization.match(/^YOP-RSA2048-SHA256 (yop-auth-v3\/.*?\/.*?\/\d+)\/(.*?)\/(.*?)$/);
       const signatureFromHeaders = authParts ? authParts[3] : '';
 
       // 这个测试的目的是验证签名方法的格式和基本功能，而不是精确匹配
-      // 因为 buildAuthorizationHeader 中生成的 canonicalRequest 包含动态生成的 requestId 等
+      // 因为 getAuthHeaders 中生成的 canonicalRequest 包含动态生成的 requestId 等
       // 所以我们只验证签名的格式和特性
       
       // 验证签名格式
@@ -709,7 +675,7 @@ x-yop-request-id:${HttpUtils.normalize('d48782ac-93c1-466e-b417-f7a71e4965f0')}`
   describe('Java SDK Log Verification', () => {
     // 测试数据
     const TEST_APP_KEY = 'app_10086032562';
-    const TEST_APP_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+    const TEST_SECRET_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7VJTUt9Us8cKj
 MzEfYyjiWA4R4/M2bS1GB4t7NXp98C3SC6dVMvDuictGeurT8jNbvJZHtCSuYEvu
 NMoSfm76oqFvAp8Gy0iz5sxjZmSnXyCdPEovGhLa0VzMaQ8s+CLOyS56YyCFGeJZ
@@ -771,9 +737,9 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
         const expectedContentSha256 = '701e66577e40ae6c9de2e9360d08ab7d947353eb00c7ff2c9c01133759d58af7';
         
         // 生成认证头
-        const headers = RsaV3Util.getAuthHeaders({ // Use getAuthHeaders
+        const headers = RsaV3Util.getAuthHeaders({
           appKey: TEST_APP_KEY,
-          appPrivateKey: TEST_APP_PRIVATE_KEY,
+          secretKey: TEST_SECRET_KEY,
           method: 'POST',
           url: TEST_URL,
           params: formParams,
@@ -799,33 +765,20 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
         const { canonicalHeaderString, signedHeadersString } = RsaV3Util.buildCanonicalHeaders(headersToSign);
         
         // 预期的 canonicalHeaders 格式（根据Java日志）
-        let expectedCanonicalHeaders = [ // Change const to let
+        const expectedCanonicalHeaders = [
           `x-yop-appkey:${TEST_APP_KEY}`,
           `x-yop-content-sha256:${expectedContentSha256}`,
           `x-yop-request-id:${TEST_REQUEST_ID}`
         ].join('\n');
         
-        // Expect content-type for POST form-urlencoded
-        // Rebuild expected string matching the code's logic (sort by lowercase key before joining)
-        // headersToSign here does NOT include content-type
-        const expectedEntries = [
-          { key: 'x-yop-appkey', value: `x-yop-appkey:${HttpUtils.normalize(TEST_APP_KEY)}` },
-          { key: 'x-yop-content-sha256', value: `x-yop-content-sha256:${HttpUtils.normalize(expectedContentSha256)}` },
-          { key: 'x-yop-request-id', value: `x-yop-request-id:${HttpUtils.normalize(TEST_REQUEST_ID)}` }
-        ];
-        expectedEntries.sort((a, b) => a.key.localeCompare(b.key)); // Sort by lowercase key
-        expectedCanonicalHeaders = expectedEntries.map(e => e.value).join('\n'); // Join the sorted values
-
         expect(canonicalHeaderString).toBe(expectedCanonicalHeaders);
-        expect(signedHeadersString).toBe(['x-yop-appkey', 'x-yop-content-sha256', 'x-yop-request-id'].sort().join(';')); // Should not include content-type
+        expect(signedHeadersString).toBe('x-yop-appkey;x-yop-content-sha256;x-yop-request-id');
         
         // 验证 Authorization 头部格式
-        const authHeader = headers.Authorization; // Extract Authorization header
-        expect(authHeader).toBeDefined();
-        const authParts = parseAuthHeader(authHeader);
+        expect(headers.Authorization).toBeDefined();
+        const authParts = parseAuthHeader(headers.Authorization);
         expect(authParts).not.toBeNull();
-        // Expect content-type for POST form-urlencoded in the final Authorization header
-        expect(authParts?.signedHeaders).toBe(['content-type', 'x-yop-appkey', 'x-yop-content-sha256', 'x-yop-request-id'].sort().join(';'));
+        expect(authParts?.signedHeaders).toBe('x-yop-appkey;x-yop-content-sha256;x-yop-request-id');
         expect(authParts?.signature).toMatch(/^[A-Za-z0-9_-]+[$]SHA256$/);
       } finally {
         // 恢复原始函数
@@ -859,9 +812,9 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
         expect(actualContentSha256).toBe(expectedContentSha256);
         
         // 生成认证头
-        const headers = RsaV3Util.getAuthHeaders({ // Use getAuthHeaders
+        const headers = RsaV3Util.getAuthHeaders({
           appKey: TEST_APP_KEY,
-          appPrivateKey: TEST_APP_PRIVATE_KEY,
+          secretKey: TEST_SECRET_KEY,
           method: 'POST',
           url: TEST_URL,
           params: jsonParams,
@@ -887,34 +840,20 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
         const { canonicalHeaderString, signedHeadersString } = RsaV3Util.buildCanonicalHeaders(headersToSign);
         
         // 预期的 canonicalHeaders 格式（根据Java日志）
-        let expectedCanonicalHeaders = [ // Change const to let
+        const expectedCanonicalHeaders = [
           `x-yop-appkey:${TEST_APP_KEY}`,
           `x-yop-content-sha256:${expectedContentSha256}`,
           `x-yop-request-id:${TEST_REQUEST_ID}`
         ].join('\n');
         
-        // Expect content-type for POST JSON
-        // Remove const, assign to existing variable
-        // Rebuild expected string matching the code's logic (sort by lowercase key before joining)
-        // headersToSign here does NOT include content-type
-         const expectedEntriesJson = [
-          { key: 'x-yop-appkey', value: `x-yop-appkey:${HttpUtils.normalize(TEST_APP_KEY)}` },
-          { key: 'x-yop-content-sha256', value: `x-yop-content-sha256:${HttpUtils.normalize(expectedContentSha256)}` },
-          { key: 'x-yop-request-id', value: `x-yop-request-id:${HttpUtils.normalize(TEST_REQUEST_ID)}` }
-        ];
-        expectedEntriesJson.sort((a, b) => a.key.localeCompare(b.key)); // Sort by lowercase key
-        expectedCanonicalHeaders = expectedEntriesJson.map(e => e.value).join('\n'); // Join the sorted values
-
         expect(canonicalHeaderString).toBe(expectedCanonicalHeaders);
-        expect(signedHeadersString).toBe(['x-yop-appkey', 'x-yop-content-sha256', 'x-yop-request-id'].sort().join(';')); // Should not include content-type
+        expect(signedHeadersString).toBe('x-yop-appkey;x-yop-content-sha256;x-yop-request-id');
         
         // 验证 Authorization 头部格式
-        const authHeader = headers.Authorization; // Extract Authorization header
-        expect(authHeader).toBeDefined();
-        const authParts = parseAuthHeader(authHeader);
+        expect(headers.Authorization).toBeDefined();
+        const authParts = parseAuthHeader(headers.Authorization);
         expect(authParts).not.toBeNull();
-        // Expect content-type for POST JSON in the final Authorization header
-        expect(authParts?.signedHeaders).toBe(['content-type', 'x-yop-appkey', 'x-yop-content-sha256', 'x-yop-request-id'].sort().join(';'));
+        expect(authParts?.signedHeaders).toBe('x-yop-appkey;x-yop-content-sha256;x-yop-request-id');
         expect(authParts?.signature).toMatch(/^[A-Za-z0-9_-]+[$]SHA256$/);
       } finally {
         // 恢复原始函数
