@@ -818,7 +818,7 @@ YhAN0oFzJZvs5lFG9Bg+kNkyhgf9eVcUUxXKnA6UwXq2amoTa4Iq3NW6YuPI
       const encrypted = crypto.publicEncrypt(
         {
           key: publicKey,
-          padding: crypto.constants.RSA_PKCS1_PADDING
+          padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
         },
         Buffer.from(testData)
       );
@@ -842,10 +842,10 @@ YhAN0oFzJZvs5lFG9Bg+kNkyhgf9eVcUUxXKnA6UwXq2amoTa4Iq3NW6YuPI
         }
       });
 
-      // 测试无效的base64内容，但不期望抛出异常，因为实际实现可能会返回空或处理错误
-      const result = VerifyUtils.rsaDecrypt('invalid_base64', privateKey);
-      // 根据实际实现，可能返回空字符串或Buffer
-      expect(result).toBeDefined();
+      // 测试无效的base64内容，应该抛出异常
+      expect(() => {
+        VerifyUtils.rsaDecrypt('invalid_base64', privateKey);
+      }).toThrow();
     });
   });
 

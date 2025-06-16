@@ -466,10 +466,11 @@ export class VerifyUtils {
    */
   static rsaDecrypt(content: string, privateKey: string): Buffer {
     const block = Buffer.from(content, 'base64');
+    // Use OAEP padding which is compatible with modern Node.js versions
     const decodeData = crypto.privateDecrypt(
       {
         key: privateKey,
-        padding: crypto.constants.RSA_PKCS1_PADDING,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
       },
       block,
     );
