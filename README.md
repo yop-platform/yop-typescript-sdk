@@ -6,6 +6,7 @@
 [![CI](https://github.com/yop-platform/yop-typescript-sdk/workflows/CI/badge.svg)](https://github.com/yop-platform/yop-typescript-sdk/actions)
 [![codecov](https://codecov.io/gh/yop-platform/yop-typescript-sdk/branch/main/graph/badge.svg)](https://codecov.io/gh/yop-platform/yop-typescript-sdk)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/yop-platform/yop-typescript-sdk)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fyop-platform%2Fyop-typescript-sdk.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fyop-platform%2Fyop-typescript-sdk?ref=badge_shield)
 
 [阅读中文文档](README_zh-CN.md)
 
@@ -355,3 +356,6 @@ We will review your contribution as soon as possible. Thank you for contributing
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fyop-platform%2Fyop-typescript-sdk.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fyop-platform%2Fyop-typescript-sdk?ref=badge_large)
