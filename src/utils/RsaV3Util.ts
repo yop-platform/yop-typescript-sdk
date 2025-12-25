@@ -159,8 +159,10 @@ export class RsaV3Util {
 
         const value = headersToSign[originalKey]?.trim() ?? ''; // 获取值并去除前后空格
 
-        // 不进行 URL 编码，直接使用小写 key 和 trimmed value
-        canonicalEntries.push(`${lowerCaseKey}:${value}`);
+        // 对 Header Name 和 Value 进行 URL 编码
+        const encodedKey = HttpUtils.normalize(lowerCaseKey);
+        const encodedValue = HttpUtils.normalize(value);
+        canonicalEntries.push(`${encodedKey}:${encodedValue}`);
         signedHeaderNames.push(lowerCaseKey);
       });
 

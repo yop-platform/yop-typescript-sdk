@@ -215,7 +215,7 @@ describe('RsaV3Util', () => {
   });
 
   describe('buildCanonicalHeaders', () => {
-     it('should build canonical headers correctly including only x-yop-* headers, without URL encoding', () => {
+     it('should build canonical headers correctly including only x-yop-* headers, with URL encoding', () => {
         const headersToSign = {
             'X-Yop-Appkey': TEST_APP_KEY, // Uppercase key
             'X-Yop-Content-Sha256': 'testSha256',
@@ -224,7 +224,8 @@ describe('RsaV3Util', () => {
             'Custom-Header': ' Value With Space ', // Header with leading/trailing space - should be excluded
         };
 
-        // Expected canonical string: only x-yop-* headers, sorted by lowercase name, no URL encoding
+        // Expected canonical string: only x-yop-* headers, sorted by lowercase name, with URL encoding
+        // Note: TEST_APP_KEY, 'testSha256', 'testRequestId' do not contain characters that need encoding
         const expectedCanonical = [
             `x-yop-appkey:${TEST_APP_KEY}`,
             `x-yop-content-sha256:testSha256`,
@@ -237,6 +238,28 @@ describe('RsaV3Util', () => {
         const result = RsaV3Util.buildCanonicalHeaders(headersToSign);
         expect(result.canonicalHeaderString).toBe(expectedCanonical);
         expect(result.signedHeadersString).toBe(expectedSigned);
+    });
+
+    it('should URL encode header values with special characters', () => {
+        const headersToSign = {
+            'x-yop-appkey': 'app key with spaces', // Contains spaces
+            'x-yop-content-sha256': 'test:hash;value', // Contains colon and semicolon
+            'x-yop-request-id': 'uuid@domain.com', // Contains @
+        };
+
+        const result = RsaV3Util.buildCanonicalHeaders(headersToSign);
+
+        // Expected canonical string: values should be URL encoded
+        // 'app key with spaces' -> 'app%20key%20with%20spaces'
+        // 'test:hash;value' -> 'test%3Ahash%3Bvalue'
+        // 'uuid@domain.com' -> 'uuid%40domain.com'
+        const expectedCanonical = [
+            'x-yop-appkey:app%20key%20with%20spaces',
+            'x-yop-content-sha256:test%3Ahash%3Bvalue',
+            'x-yop-request-id:uuid%40domain.com'
+        ].join('\n');
+
+        expect(result.canonicalHeaderString).toBe(expectedCanonical);
     });
 
      it('should handle empty headers map', () => {
@@ -253,7 +276,7 @@ describe('RsaV3Util', () => {
              'Null-Header': null as any, // Should be excluded
              'Undefined-Header': undefined as any, // Should be excluded
          };
-          // Expected canonical string: only x-yop-* headers, sorted by lowercase name, no URL encoding
+          // Expected canonical string: only x-yop-* headers, sorted by lowercase name, with URL encoding
           const expectedCanonical = [
              `x-yop-appkey:${TEST_APP_KEY}`,
              `x-yop-content-sha256:` // empty value
