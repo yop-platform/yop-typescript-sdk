@@ -1,5 +1,6 @@
 import { getUniqueId } from './GetUniqueId.js';
 import { HttpUtils } from './HttpUtils.js';
+import { SDK_VERSION } from './version.js';
 import crypto from 'crypto';
 import md5 from 'md5';
 import { AuthHeaderOptions } from './types.js';
@@ -59,15 +60,16 @@ export class RsaV3Util {
     // 创建参数的副本，以便不修改原始参数
     const paramsCopy = JSON.parse(JSON.stringify(params));
 
-    // 对 JSON 参数进行 URL 编码（仅在需要时修改副本）
-    if (config.contentType === 'application/json') {
-      for (const key in paramsCopy) {
-        // Cast paramsCopy[key] to any as HttpUtils.normalize is designed to handle various input types
-        paramsCopy[key] = HttpUtils.normalize(paramsCopy[key] as any);
-      }
-    }
-    // 计算内容哈希值（使用转换后的参数）
-    const contentSha256 = RsaV3Util.getSha256AndHexStr(paramsCopy, config, method);
+    // 计算内容哈希值
+    // 注意: getSha256AndHexStr 内部会根据 contentType 和 method 进行适当的处理
+    // - JSON POST: 直接 JSON 序列化
+    // - GET/form POST: 通过 getCanonicalParams 进行 URL 编码
+    console.debug(`[RsaV3Util] Generating auth headers for ${method} ${url}`);
+    const contentSha256 = RsaV3Util.getSha256AndHexStr(
+      paramsCopy,
+      config,
+      method,
+    );
     const timestamp = formatDate(new Date(), 'yyyy-MM-ddThh:mm:ssZ');
     const authString = 'yop-auth-v3/' + appKey + '/' + timestamp + '/1800';
     const HTTPRequestMethod = method;
@@ -105,13 +107,17 @@ export class RsaV3Util {
     // Prepare all headers for the actual HTTP request
     const allHeaders: Record<string, string> = {
       ...headersToSign, // Include signed headers
-      'x-yop-sdk-version': '4.0.12', // 根据实际使用的SDK版本调整
+      'x-yop-sdk-version': SDK_VERSION, // Auto-generated from package.json
       'x-yop-sdk-lang': '@yeepay/yop-typescript-sdk',
       // Authorization header will be added after signing
     };
 
     // Generate signature using the sign method
     const signToBase64 = RsaV3Util.sign(CanonicalRequest, secretKey);
+
+    console.debug(
+      `[RsaV3Util] Generated signature for ${method} ${url}, Request ID: ${headersToSign['x-yop-request-id']}`,
+    );
 
     // Construct auth header using the correctly generated signedHeadersString
     allHeaders.Authorization =
@@ -153,8 +159,10 @@ export class RsaV3Util {
 
         const value = headersToSign[originalKey]?.trim() ?? ''; // 获取值并去除前后空格
 
-        // 不进行 URL 编码，直接使用小写 key 和 trimmed value
-        canonicalEntries.push(`${lowerCaseKey}:${value}`);
+        // 对 Header Name 和 Value 进行 URL 编码
+        const encodedKey = HttpUtils.normalize(lowerCaseKey);
+        const encodedValue = HttpUtils.normalize(value);
+        canonicalEntries.push(`${encodedKey}:${encodedValue}`);
         signedHeaderNames.push(lowerCaseKey);
       });
 
@@ -236,14 +244,20 @@ export class RsaV3Util {
       let normalizedValue: string;
 
       if (type === 'application/x-www-form-urlencoded') {
-        // Cast value to any as HttpUtils.normalize is designed to handle various input types
+        // normalize accepts string | number | boolean | undefined | null
         normalizedValue = HttpUtils.normalize(
-          HttpUtils.normalize(value as any),
+          HttpUtils.normalize(
+            value as string | number | boolean | undefined | null,
+          ),
         );
       } else {
-        // Cast value to any as HttpUtils.normalize is designed to handle various input types
+        // normalize accepts string | number | boolean | undefined | null
         // Note: normalize itself calls toString() if value is not null/undefined
-        normalizedValue = HttpUtils.normalize((value as any)?.toString());
+        const valueStr =
+          value !== null && value !== undefined
+            ? String(value)
+            : (value as undefined | null);
+        normalizedValue = HttpUtils.normalize(valueStr);
       }
 
       paramStrings.push(normalizedKey + '=' + normalizedValue);
@@ -319,18 +333,6 @@ export class RsaV3Util {
       config.contentType.includes('application/json') &&
       method.toLowerCase() === 'post'
     ) {
-      // 特殊处理：检查是否匹配 Java SDK 日志中的特定 JSON 对象
-      if (
-        Object.keys(params).length === 2 &&
-        'city' in params &&
-        'name' in params &&
-        params.city === '上海' &&
-        params.name === '张三'
-      ) {
-        // 直接返回 Java SDK 日志中的哈希值
-        return '03357a578289a6aab9b27ce7d53dbf5aedf8f1121d60dd0b455eaa83db8a424e';
-      }
-
       // 对对象的键进行排序，以确保生成一致的 JSON 字符串
       const sortedParams = this.sortObjectKeys(params);
       str = JSON.stringify(sortedParams);
@@ -378,6 +380,9 @@ export class RsaV3Util {
    * @returns The signature string (Base64 URL Safe + $SHA256)
    */
   public static sign(canonicalRequest: string, secretKey: string): string {
+    console.debug(
+      `[RsaV3Util] Signing canonical request, length: ${canonicalRequest.length}`,
+    );
     // Check if secretKey is already in PEM format
     const private_key = secretKey.includes('-----BEGIN PRIVATE KEY-----')
       ? secretKey

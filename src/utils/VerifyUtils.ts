@@ -71,7 +71,7 @@ export class VerifyUtils {
         try {
           const formattedKey = this.formatPublicKey(certificate);
           return formattedKey;
-        } catch (error) {
+        } catch (_error) {
           return null;
         }
       }
@@ -95,7 +95,7 @@ export class VerifyUtils {
 
           // 将换行符替换为 \n，确保格式一致性
           return pemKey.replace(/\r?\n/g, '\n');
-        } catch (derError) {
+        } catch (_derError) {
           // 如果上面的方法失败，尝试使用 X509Certificate 类（Node.js v15.6.0+）
           try {
             const cert = new crypto.X509Certificate(certificate);
@@ -117,7 +117,7 @@ export class VerifyUtils {
 
       // 如果所有方法都失败，返回 null
       return null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -173,7 +173,7 @@ export class VerifyUtils {
       }
 
       return BEGIN_MARKER + '\n' + formattedKey + END_MARKER;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -239,7 +239,7 @@ export class VerifyUtils {
             const certBuffer = Buffer.from(params.publicKey, 'base64');
             public_key = this.extractPublicKeyFromCertificate(certBuffer);
           }
-        } catch (e) {
+        } catch (_e) {
           // 忽略错误，继续尝试其他方法
         }
 
@@ -264,11 +264,16 @@ export class VerifyUtils {
 
         // 执行验证
         const res = verify.verify(public_key, sign, 'base64');
+        if (!res) {
+          console.error(
+            `[VerifyUtils] RSA signature verification failed. Sign: ${params.sign.substring(0, 20)}..., Data length: ${sb.length}`,
+          );
+        }
         return res;
-      } catch (verifyError: unknown) {
+      } catch (_verifyError: unknown) {
         return false;
       }
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -301,14 +306,14 @@ export class VerifyUtils {
         try {
           JSON.parse(looseMatch[1]);
           return looseMatch[1];
-        } catch (e) {
+        } catch (_e) {
           // 如果解析失败，忽略并继续
         }
       }
 
       // 如果所有方法都失败，返回空字符串
       return '';
-    } catch (e) {
+    } catch (_e) {
       // 如果 JSON 解析失败，回退到正则表达式方法
       const match = str.match(/"result"\s*:\s*({.*?})\s*,\s*"ts"/s);
       return match ? (match[1] ?? '') : '';
@@ -365,6 +370,9 @@ export class VerifyUtils {
           event.message = '验签失败';
         }
       } catch (error) {
+        console.error(
+          `[VerifyUtils] Digital envelope processing failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
         event.message = error instanceof Error ? error.message : String(error);
       }
     }
@@ -429,11 +437,16 @@ export class VerifyUtils {
         const verify = crypto.createVerify('RSA-SHA256');
         verify.update(sb);
         const res = verify.verify(formattedPublicKey, sign, 'base64');
+        if (!res) {
+          console.error(
+            `[VerifyUtils] Notification signature verification failed. Sign: ${sign.substring(0, 20)}...`,
+          );
+        }
         return res;
-      } catch (verifyError: unknown) {
+      } catch (_verifyError: unknown) {
         return false;
       }
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -466,11 +479,11 @@ export class VerifyUtils {
    */
   static rsaDecrypt(content: string, privateKey: string): Buffer {
     const block = Buffer.from(content, 'base64');
-    // Use OAEP padding which is compatible with modern Node.js versions
+    // Use padding which is compatible with modern Node.js versions
     const decodeData = crypto.privateDecrypt(
       {
         key: privateKey,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        padding: crypto.constants.RSA_PKCS1_PADDING,
       },
       block,
     );
@@ -534,7 +547,7 @@ export class VerifyUtils {
           // Validate if the extracted part is valid JSON (optional but good)
           JSON.parse(result);
           return result;
-        } catch (e) {
+        } catch (_e) {
           return ''; // Return empty or throw if validation fails
         }
       }

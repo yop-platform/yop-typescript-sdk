@@ -1,17 +1,18 @@
 {
   "name": "@yeepay/yop-typescript-sdk",
-  "version": "4.0.12",
+  "version": "4.0.14",
   "description": "TypeScript SDK for interacting with YOP (YeePay Open Platform)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
     "clean": "rimraf dist",
+    "generate:version": "node scripts/generate-version.js",
     "tsc": "tsc",
     "build:watch": "tsc --watch",
     "copy-assets": "copyfiles -u 1 \"src/assets/**\" dist",
-    "build": "npm run clean && npm run tsc && npm run copy-assets",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "build": "npm run clean && npm run generate:version && npm run lint && npm run tsc && npm run copy-assets",
+    "test": "npm run generate:version && NODE_OPTIONS=--experimental-vm-modules jest",
     "lint": "eslint src/**/*.ts",
     "prepublishOnly": "npm run build"
   },
@@ -20,24 +21,26 @@
     "urlsafe-base64": "^1.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.18.0",
     "@types/dotenv": "^6.1.1",
     "@types/jest": "^29.5.14",
     "@types/md5": "^2.3.5",
     "@types/node": "^18.19.86",
     "@types/rimraf": "^3.0.2",
     "@types/urlsafe-base64": "^1.0.31",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
+    "@typescript-eslint/eslint-plugin": "^8.19.1",
+    "@typescript-eslint/parser": "^8.19.1",
     "copyfiles": "^2.4.1",
     "dotenv": "^16.5.0",
-    "eslint": "^8.57.1",
+    "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-prettier": "^5.2.6",
     "jest": "^29.0.0",
     "prettier": "^3.5.3",
     "rimraf": "^6.0.1",
     "ts-jest": "^29.0.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.19.1"
   },
   "files": [
     "dist"
@@ -53,13 +56,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git@github.com:yop-platform/yop-typescript-sdk.git"
+    "url": "git+ssh://git@github.com/yop-platform/yop-typescript-sdk.git"
   },
   "publishConfig": {
     "access": "public"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",

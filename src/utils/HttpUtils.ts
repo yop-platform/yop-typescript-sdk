@@ -66,35 +66,6 @@ export class HttpUtils {
   }
 
   /**
-   * Converts a string to bytes (UTF-8 encoding)
-   * @param str - The string to convert
-   * @returns Array of bytes
-   */
-  static stringToByte(str: string): number[] {
-    const bytes: number[] = [];
-    const len = str.length;
-    for (let i = 0; i < len; i++) {
-      const c = str.charCodeAt(i);
-      if (c >= 0x010000 && c <= 0x10ffff) {
-        bytes.push(((c >> 18) & 0x07) | 0xf0);
-        bytes.push(((c >> 12) & 0x3f) | 0x80);
-        bytes.push(((c >> 6) & 0x3f) | 0x80);
-        bytes.push((c & 0x3f) | 0x80);
-      } else if (c >= 0x000800 && c <= 0x00ffff) {
-        bytes.push(((c >> 12) & 0x0f) | 0xe0);
-        bytes.push(((c >> 6) & 0x3f) | 0x80);
-        bytes.push((c & 0x3f) | 0x80);
-      } else if (c >= 0x000080 && c <= 0x0007ff) {
-        bytes.push(((c >> 6) & 0x1f) | 0xc0);
-        bytes.push((c & 0x3f) | 0x80);
-      } else {
-        bytes.push(c & 0xff);
-      }
-    }
-    return bytes;
-  }
-
-  /**
    * Encodes parameters in a request
    * @param req - The request containing parameters
    * @returns Encoded parameters
@@ -103,8 +74,10 @@ export class HttpUtils {
     const encoded: Record<string, string> = {};
     for (const k in req.paramMap) {
       const v = req.paramMap[k];
-      // Cast v to any as HttpUtils.normalize is designed to handle various input types
-      encoded[this.normalize(k)] = this.normalize(v as any);
+      // Cast v to the types that HttpUtils.normalize accepts
+      encoded[this.normalize(k)] = this.normalize(
+        v as string | number | boolean | undefined | null,
+      );
     }
     return encoded;
   }

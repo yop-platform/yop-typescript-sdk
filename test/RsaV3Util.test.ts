@@ -1,5 +1,6 @@
 import { RsaV3Util } from '../src/utils/RsaV3Util';
 import { HttpUtils } from '../src/utils/HttpUtils';
+import { SDK_VERSION } from '../src/utils/version.js';
 import crypto from 'crypto';
 
 // --- Test Data ---
@@ -71,68 +72,68 @@ describe('HttpUtils', () => {
     it('should correctly encode special characters according to RFC 3986', () => {
       // 测试空格编码为 %20
       expect(HttpUtils.normalize(' ')).toBe('%20');
-      
+
       // 测试 + 编码为 %2B
       expect(HttpUtils.normalize('+')).toBe('%2B');
-      
+
       // 测试 * 编码为 %2A
       expect(HttpUtils.normalize('*')).toBe('%2A');
-      
+
       // 测试 ~ 不被编码
       expect(HttpUtils.normalize('~')).toBe('~');
-      
+
       // 测试组合字符串
       expect(HttpUtils.normalize('a b+c*d~e')).toBe('a%20b%2Bc%2Ad~e');
-      
+
       // 测试中文字符
       expect(HttpUtils.normalize('测试')).toBe('%E6%B5%8B%E8%AF%95');
-      
+
       // 测试 %7E 应该被转换为 ~
       const input = Buffer.from('%7E', 'utf-8');
       const result = HttpUtils.normalize(input.toString());
       expect(result).toBe('~');
     });
-    
+
     it('should handle edge cases correctly', () => {
       // 测试 null 和 undefined
       expect(HttpUtils.normalize(null)).toBe('');
       expect(HttpUtils.normalize(undefined)).toBe('');
-      
+
       // 测试空字符串
       expect(HttpUtils.normalize('')).toBe('');
-      
+
       // 测试数字和布尔值
       expect(HttpUtils.normalize(123)).toBe('123');
       expect(HttpUtils.normalize(true)).toBe('true');
       expect(HttpUtils.normalize(false)).toBe('false');
-      
+
       // 测试特殊字符组合
       expect(HttpUtils.normalize('!@#$%^&*()')).toBe('%21%40%23%24%25%5E%26%2A%28%29');
-      
+
       // 测试 URL 保留字符
       expect(HttpUtils.normalize(':/?#[]@')).toBe('%3A%2F%3F%23%5B%5D%40');
-      
+
       // 测试 URL 中的特殊字符
       expect(HttpUtils.normalize('https://example.com?q=test&lang=zh')).toBe('https%3A%2F%2Fexample.com%3Fq%3Dtest%26lang%3Dzh');
     });
-    
+
     it('should handle RFC 3986 special cases consistently', () => {
       // 测试 RFC 3986 中的特殊情况
-      
+
       // 1. 空格应该编码为 %20 而不是 +
       expect(HttpUtils.normalize('hello world')).toBe('hello%20world');
-      
+
       // 2. ~ 是非保留字符，不应该被编码
       expect(HttpUtils.normalize('~user')).toBe('~user');
-      
+
       // 3. 组合测试：包含所有特殊字符的情况
       const complexString = 'a~b*c+d e/f?g:h@i&j=k#l';
       const expected = 'a~b%2Ac%2Bd%20e%2Ff%3Fg%3Ah%40i%26j%3Dk%23l';
       expect(HttpUtils.normalize(complexString)).toBe(expected);
-      
+
       // 4. 测试 %7E 的特殊处理
       expect(HttpUtils.normalize('%7E')).toBe('~');
-      
+
       // 5. 测试十六进制编码的大写
       const lowerHexInput = Buffer.from([0x0a]); // 换行符，ASCII 10
       const result = HttpUtils.normalize(lowerHexInput.toString());
@@ -214,7 +215,7 @@ describe('RsaV3Util', () => {
   });
 
   describe('buildCanonicalHeaders', () => {
-     it('should build canonical headers correctly including only x-yop-* headers, without URL encoding', () => {
+     it('should build canonical headers correctly including only x-yop-* headers, with URL encoding', () => {
         const headersToSign = {
             'X-Yop-Appkey': TEST_APP_KEY, // Uppercase key
             'X-Yop-Content-Sha256': 'testSha256',
@@ -223,7 +224,8 @@ describe('RsaV3Util', () => {
             'Custom-Header': ' Value With Space ', // Header with leading/trailing space - should be excluded
         };
 
-        // Expected canonical string: only x-yop-* headers, sorted by lowercase name, no URL encoding
+        // Expected canonical string: only x-yop-* headers, sorted by lowercase name, with URL encoding
+        // Note: TEST_APP_KEY, 'testSha256', 'testRequestId' do not contain characters that need encoding
         const expectedCanonical = [
             `x-yop-appkey:${TEST_APP_KEY}`,
             `x-yop-content-sha256:testSha256`,
@@ -236,6 +238,28 @@ describe('RsaV3Util', () => {
         const result = RsaV3Util.buildCanonicalHeaders(headersToSign);
         expect(result.canonicalHeaderString).toBe(expectedCanonical);
         expect(result.signedHeadersString).toBe(expectedSigned);
+    });
+
+    it('should URL encode header values with special characters', () => {
+        const headersToSign = {
+            'x-yop-appkey': 'app key with spaces', // Contains spaces
+            'x-yop-content-sha256': 'test:hash;value', // Contains colon and semicolon
+            'x-yop-request-id': 'uuid@domain.com', // Contains @
+        };
+
+        const result = RsaV3Util.buildCanonicalHeaders(headersToSign);
+
+        // Expected canonical string: values should be URL encoded
+        // 'app key with spaces' -> 'app%20key%20with%20spaces'
+        // 'test:hash;value' -> 'test%3Ahash%3Bvalue'
+        // 'uuid@domain.com' -> 'uuid%40domain.com'
+        const expectedCanonical = [
+            'x-yop-appkey:app%20key%20with%20spaces',
+            'x-yop-content-sha256:test%3Ahash%3Bvalue',
+            'x-yop-request-id:uuid%40domain.com'
+        ].join('\n');
+
+        expect(result.canonicalHeaderString).toBe(expectedCanonical);
     });
 
      it('should handle empty headers map', () => {
@@ -252,7 +276,7 @@ describe('RsaV3Util', () => {
              'Null-Header': null as any, // Should be excluded
              'Undefined-Header': undefined as any, // Should be excluded
          };
-          // Expected canonical string: only x-yop-* headers, sorted by lowercase name, no URL encoding
+          // Expected canonical string: only x-yop-* headers, sorted by lowercase name, with URL encoding
           const expectedCanonical = [
              `x-yop-appkey:${TEST_APP_KEY}`,
              `x-yop-content-sha256:` // empty value
@@ -279,16 +303,16 @@ describe('RsaV3Util', () => {
 
     it('should hash JSON string for JSON POST method with sorted keys', () => {
       const params = { b: '中文', a: 1 }; // Order matters in JSON stringify
-      
+
       // 使用与 RsaV3Util.getSha256AndHexStr 相同的排序逻辑
       const sortObjectKeys = (obj: Record<string, unknown>): Record<string, unknown> => {
         if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
           return obj as Record<string, unknown>;
         }
-        
+
         const sortedObj: Record<string, unknown> = {};
         const keys = Object.keys(obj).sort();
-        
+
         for (const key of keys) {
           if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
             // 递归排序嵌套对象
@@ -297,15 +321,15 @@ describe('RsaV3Util', () => {
             sortedObj[key] = obj[key];
           }
         }
-        
+
         return sortedObj;
       };
-      
+
       // 对对象的键进行排序，以确保生成一致的 JSON 字符串
       const sortedParams = sortObjectKeys(params);
       const jsonString = JSON.stringify(sortedParams);
       const expectedHash = crypto.createHash('sha256').update(jsonString, 'utf8').digest('hex');
-      
+
       expect(RsaV3Util.getSha256AndHexStr(params, { contentType: 'application/json' }, 'POST')).toBe(expectedHash);
       expect(RsaV3Util.getSha256AndHexStr(params, { contentType: 'application/json;charset=utf-8' }, 'post')).toBe(expectedHash);
     });
@@ -320,7 +344,7 @@ describe('RsaV3Util', () => {
       const expectedHash = crypto.createHash('sha256').update(jsonString, 'utf8').digest('hex');
       expect(RsaV3Util.getSha256AndHexStr({}, { contentType: 'application/json' }, 'POST')).toBe(expectedHash);
     });
-    
+
     it('should match Java SDK hash for Chinese form parameters', () => {
       // 根据Java SDK日志中的示例参数和哈希值
       const chineseParams = {
@@ -329,17 +353,17 @@ describe('RsaV3Util', () => {
         name: '李四'
       };
       const expectedJavaHash = '701e66577e40ae6c9de2e9360d08ab7d947353eb00c7ff2c9c01133759d58af7';
-      
+
       // 测试表单提交的哈希计算
       const result = RsaV3Util.getSha256AndHexStr(
         chineseParams,
         { contentType: 'application/x-www-form-urlencoded' },
         'POST'
       );
-      
+
       expect(result).toBe(expectedJavaHash);
     });
-    
+
     it('should match Java SDK hash for Chinese JSON parameters', () => {
       // 根据Java SDK日志中的示例参数和哈希值
       const chineseJsonParams = {
@@ -347,14 +371,14 @@ describe('RsaV3Util', () => {
         name: '张三'
       };
       const expectedJavaHash = '03357a578289a6aab9b27ce7d53dbf5aedf8f1121d60dd0b455eaa83db8a424e';
-      
+
       // 测试JSON提交的哈希计算
       const result = RsaV3Util.getSha256AndHexStr(
         chineseJsonParams,
         { contentType: 'application/json' },
         'POST'
       );
-      
+
       expect(result).toBe(expectedJavaHash);
     });
   });
@@ -608,7 +632,7 @@ rCcNrf36RzK+PLLPq/uPAaY=
       // 这个测试的目的是验证签名方法的格式和基本功能，而不是精确匹配
       // 因为 getAuthHeaders 中生成的 canonicalRequest 包含动态生成的 requestId 等
       // 所以我们只验证签名的格式和特性
-      
+
       // 验证签名格式
       expect(signatureFromHeaders).toMatch(/^[A-Za-z0-9_-]+[$]SHA256$/);
       // 验证签名不包含 URL 不安全字符
@@ -671,7 +695,7 @@ x-yop-request-id:${HttpUtils.normalize('d48782ac-93c1-466e-b417-f7a71e4965f0')}`
       expect(signature.endsWith('$SHA256')).toBe(true);
     });
   });
-  
+
   describe('Java SDK Log Verification', () => {
     // 测试数据
     const TEST_APP_KEY = 'app_10086032562';
@@ -705,7 +729,7 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
 -----END PRIVATE KEY-----`;
     const TEST_URL = '/test/api/resource';
     const TEST_REQUEST_ID = 'test-chinese-form-uuid-260c2d5a-1174-4d9a-927a-97ea2ca90f0f';
-    
+
     // 辅助函数：解析 Authorization 头
     const parseAuthHeader = (authHeader: string | undefined) => {
       if (!authHeader) return null;
@@ -717,25 +741,25 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
         signature: match[3],
       };
     };
-    
+
     it('should replicate Java SDK Form POST scenario with Chinese characters', () => {
       // 保存原始方法以便测试后恢复
       const originalUuid = RsaV3Util.uuid;
-      
+
       try {
         // 模拟 uuid 函数返回固定值
         RsaV3Util.uuid = () => TEST_REQUEST_ID;
-        
+
         // 表单参数（来自Java日志）
         const formParams = {
           item: '测试商品',
           address: '北京',
           name: '李四'
         };
-        
+
         // 预期的内容哈希值（来自Java日志）
         const expectedContentSha256 = '701e66577e40ae6c9de2e9360d08ab7d947353eb00c7ff2c9c01133759d58af7';
-        
+
         // 生成认证头
         const headers = RsaV3Util.getAuthHeaders({
           appKey: TEST_APP_KEY,
@@ -745,35 +769,35 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
           params: formParams,
           config: { contentType: 'application/x-www-form-urlencoded' },
         });
-        
+
         // 验证基本头部
         expect(headers['x-yop-appkey']).toBe(TEST_APP_KEY);
         expect(headers['x-yop-request-id']).toBe(TEST_REQUEST_ID);
         expect(headers['x-yop-content-sha256']).toBe(expectedContentSha256);
-        
+
         // 验证 canonicalQueryString 为空（对于 POST 请求）
         const canonicalQueryString = RsaV3Util.getCanonicalQueryString(formParams, 'POST');
         expect(canonicalQueryString).toBe('');
-        
+
         // 验证 canonicalHeaders 格式正确
         const headersToSign = {
           'x-yop-appkey': headers['x-yop-appkey'],
           'x-yop-content-sha256': headers['x-yop-content-sha256'],
           'x-yop-request-id': headers['x-yop-request-id'],
         };
-        
+
         const { canonicalHeaderString, signedHeadersString } = RsaV3Util.buildCanonicalHeaders(headersToSign);
-        
+
         // 预期的 canonicalHeaders 格式（根据Java日志）
         const expectedCanonicalHeaders = [
           `x-yop-appkey:${TEST_APP_KEY}`,
           `x-yop-content-sha256:${expectedContentSha256}`,
           `x-yop-request-id:${TEST_REQUEST_ID}`
         ].join('\n');
-        
+
         expect(canonicalHeaderString).toBe(expectedCanonicalHeaders);
         expect(signedHeadersString).toBe('x-yop-appkey;x-yop-content-sha256;x-yop-request-id');
-        
+
         // 验证 Authorization 头部格式
         expect(headers.Authorization).toBeDefined();
         const authParts = parseAuthHeader(headers.Authorization);
@@ -785,24 +809,24 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
         RsaV3Util.uuid = originalUuid;
       }
     });
-    
+
     it('should replicate Java SDK JSON POST scenario with Chinese characters', () => {
       // 保存原始方法以便测试后恢复
       const originalUuid = RsaV3Util.uuid;
-      
+
       try {
         // 模拟 uuid 函数返回固定值
         RsaV3Util.uuid = () => TEST_REQUEST_ID;
-        
+
         // JSON参数（来自Java日志）
         const jsonParams = {
           city: '上海',
           name: '张三'
         };
-        
+
         // 预期的内容哈希值（来自Java日志）
         const expectedContentSha256 = '03357a578289a6aab9b27ce7d53dbf5aedf8f1121d60dd0b455eaa83db8a424e';
-        
+
         // 直接验证 getSha256AndHexStr 方法的输出
         const actualContentSha256 = RsaV3Util.getSha256AndHexStr(
           jsonParams,
@@ -810,7 +834,7 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
           'POST'
         );
         expect(actualContentSha256).toBe(expectedContentSha256);
-        
+
         // 生成认证头
         const headers = RsaV3Util.getAuthHeaders({
           appKey: TEST_APP_KEY,
@@ -820,35 +844,35 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
           params: jsonParams,
           config: { contentType: 'application/json' },
         });
-        
+
         // 验证基本头部
         expect(headers['x-yop-appkey']).toBe(TEST_APP_KEY);
         expect(headers['x-yop-request-id']).toBe(TEST_REQUEST_ID);
         expect(headers['x-yop-content-sha256']).toBe(expectedContentSha256);
-        
+
         // 验证 canonicalQueryString 为空（对于 POST 请求）
         const canonicalQueryString = RsaV3Util.getCanonicalQueryString(jsonParams, 'POST');
         expect(canonicalQueryString).toBe('');
-        
+
         // 验证 canonicalHeaders 格式正确
         const headersToSign = {
           'x-yop-appkey': headers['x-yop-appkey'],
           'x-yop-content-sha256': headers['x-yop-content-sha256'],
           'x-yop-request-id': headers['x-yop-request-id'],
         };
-        
+
         const { canonicalHeaderString, signedHeadersString } = RsaV3Util.buildCanonicalHeaders(headersToSign);
-        
+
         // 预期的 canonicalHeaders 格式（根据Java日志）
         const expectedCanonicalHeaders = [
           `x-yop-appkey:${TEST_APP_KEY}`,
           `x-yop-content-sha256:${expectedContentSha256}`,
           `x-yop-request-id:${TEST_REQUEST_ID}`
         ].join('\n');
-        
+
         expect(canonicalHeaderString).toBe(expectedCanonicalHeaders);
         expect(signedHeadersString).toBe('x-yop-appkey;x-yop-content-sha256;x-yop-request-id');
-        
+
         // 验证 Authorization 头部格式
         expect(headers.Authorization).toBeDefined();
         const authParts = parseAuthHeader(headers.Authorization);
@@ -860,5 +884,260 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
         RsaV3Util.uuid = originalUuid;
       }
     });
+  });
+
+  describe('SDK Version and Parameter Handling Changes (v4.0.14)', () => {
+     it('should set correct SDK version in headers', () => {
+       const headers = RsaV3Util.getAuthHeaders({
+         appKey: TEST_APP_KEY,
+         secretKey: TEST_SECRET_KEY,
+         method: TEST_METHOD_GET,
+         url: TEST_URL,
+         params: { test: 'value' },
+         config: { contentType: '' }
+       });
+
+       expect(headers['x-yop-sdk-version']).toBe(SDK_VERSION);
+       expect(headers['x-yop-sdk-lang']).toBe('@yeepay/yop-typescript-sdk');
+     });
+
+     it('should not pre-normalize JSON parameters before hashing', () => {
+       // Test that JSON parameters are hashed directly without URL encoding
+       const jsonParams = {
+         name: '张三',
+         city: '上海',
+         email: 'test+user@example.com',
+         url: 'https://example.com/path?query=value'
+       };
+
+       // Calculate expected hash using the correct method (no pre-normalization)
+       const sortedParams = { city: '上海', email: 'test+user@example.com', name: '张三', url: 'https://example.com/path?query=value' };
+       const jsonString = JSON.stringify(sortedParams);
+       const expectedHash = crypto.createHash('sha256').update(jsonString, 'utf8').digest('hex');
+
+       const actualHash = RsaV3Util.getSha256AndHexStr(
+         jsonParams,
+         { contentType: 'application/json' },
+         'POST'
+       );
+
+       expect(actualHash).toBe(expectedHash);
+
+       // Verify the JSON string doesn't contain URL-encoded characters
+       expect(jsonString).toContain('+');
+       expect(jsonString).not.toContain('%2B');
+       expect(jsonString).toContain('://');
+       expect(jsonString).not.toContain('%3A%2F%2F');
+     });
+
+     it('should handle the removed hardcoded hash case generically', () => {
+       // This test verifies that the specific hardcoded case for { city: '上海', name: '张三' }
+       // is now handled through the normal flow without special treatment
+       const specificParams = {
+         city: '上海',
+         name: '张三'
+       };
+
+       // Calculate the hash using the generic flow
+       const actualHash = RsaV3Util.getSha256AndHexStr(
+         specificParams,
+         { contentType: 'application/json' },
+         'POST'
+       );
+
+       // Calculate expected hash through proper JSON serialization
+       const sortedParams = { city: '上海', name: '张三' };
+       const jsonString = JSON.stringify(sortedParams);
+       const expectedHash = crypto.createHash('sha256').update(jsonString, 'utf8').digest('hex');
+
+       expect(actualHash).toBe(expectedHash);
+       // Verify it's the expected value from the Java SDK
+       expect(actualHash).toBe('03357a578289a6aab9b27ce7d53dbf5aedf8f1121d60dd0b455eaa83db8a424e');
+     });
+
+     it('should consistently hash JSON params regardless of special characters', () => {
+       const testCases = [
+         {
+           name: 'params with special URL characters',
+           params: { query: 'value1&value2', path: '/api/v1/test' },
+         },
+         {
+           name: 'params with plus and equals signs',
+           params: { token: 'abc+def=', value: '123+456' },
+         },
+         {
+           name: 'params with spaces and newlines',
+           params: { text: 'hello world', multiline: 'line1\nline2' },
+         },
+         {
+           name: 'params with unicode emoji',
+           params: { emoji: '😀🎉', status: '✅' },
+         }
+       ];
+
+       testCases.forEach(({ name, params }) => {
+         const hash = RsaV3Util.getSha256AndHexStr(
+           params,
+           { contentType: 'application/json' },
+           'POST'
+         );
+
+         // Verify hash is valid hex string
+         expect(hash).toMatch(/^[a-f0-9]{64}$/);
+
+         // Verify consistency - calling again produces same hash
+         const hash2 = RsaV3Util.getSha256AndHexStr(
+           params,
+           { contentType: 'application/json' },
+           'POST'
+         );
+         expect(hash2).toBe(hash);
+       });
+     });
+
+     it('should handle nested JSON objects correctly without pre-normalization', () => {
+       const nestedParams = {
+         user: {
+           name: '李明',
+           email: 'test+user@domain.com',
+           settings: {
+             theme: 'dark',
+             notifications: true
+           }
+         },
+         metadata: {
+           tags: ['tag1', 'tag2'],
+           url: 'https://example.com/callback?token=abc+def'
+         }
+       };
+
+       const hash = RsaV3Util.getSha256AndHexStr(
+         nestedParams,
+         { contentType: 'application/json' },
+         'POST'
+       );
+
+       // Verify the hash is calculated from raw JSON (not URL-encoded)
+       const sortedParams = {
+         metadata: {
+           tags: ['tag1', 'tag2'],
+           url: 'https://example.com/callback?token=abc+def'
+         },
+         user: {
+           email: 'test+user@domain.com',
+           name: '李明',
+           settings: {
+             notifications: true,
+             theme: 'dark'
+           }
+         }
+       };
+       const expectedJsonString = JSON.stringify(sortedParams);
+       const expectedHash = crypto.createHash('sha256').update(expectedJsonString, 'utf8').digest('hex');
+
+       expect(hash).toBe(expectedHash);
+
+       // Verify JSON contains raw special characters
+       expect(expectedJsonString).toContain('+');
+       expect(expectedJsonString).toContain('://');
+     });
+
+     it('should differentiate between form-urlencoded and JSON content types', () => {
+       const params = {
+         email: 'user+test@example.com',
+         url: 'https://example.com/path'
+       };
+
+       // For JSON POST, no URL encoding before hashing
+       const jsonHash = RsaV3Util.getSha256AndHexStr(
+         params,
+         { contentType: 'application/json' },
+         'POST'
+       );
+
+       // For form POST, URL encoding is applied via getCanonicalParams
+       const formHash = RsaV3Util.getSha256AndHexStr(
+         params,
+         { contentType: 'application/x-www-form-urlencoded' },
+         'POST'
+       );
+
+       // The hashes should be different because of encoding differences
+       expect(jsonHash).not.toBe(formHash);
+
+       // Verify JSON hash is based on unencoded JSON
+       const sortedParams = { email: 'user+test@example.com', url: 'https://example.com/path' };
+       const jsonString = JSON.stringify(sortedParams);
+       const expectedJsonHash = crypto.createHash('sha256').update(jsonString, 'utf8').digest('hex');
+       expect(jsonHash).toBe(expectedJsonHash);
+
+       // Verify form hash is based on URL-encoded canonical params
+       const canonicalParams = RsaV3Util.getCanonicalParams(params);
+       const expectedFormHash = crypto.createHash('sha256').update(canonicalParams, 'utf8').digest('hex');
+       expect(formHash).toBe(expectedFormHash);
+     });
+
+     it('should maintain backward compatibility with GET requests', () => {
+       const params = {
+         name: '张三',
+         age: '25',
+         city: '北京'
+       };
+
+       // GET requests should use canonical params (URL-encoded)
+       const getHash = RsaV3Util.getSha256AndHexStr(
+         params,
+         { contentType: '' },
+         'GET'
+       );
+
+       const canonicalParams = RsaV3Util.getCanonicalParams(params);
+       const expectedHash = crypto.createHash('sha256').update(canonicalParams, 'utf8').digest('hex');
+
+       expect(getHash).toBe(expectedHash);
+     });
+
+     it('should produce consistent hashes with key ordering', () => {
+       const params1 = { z: 'last', a: 'first', m: 'middle' };
+       const params2 = { a: 'first', m: 'middle', z: 'last' };
+       const params3 = { m: 'middle', z: 'last', a: 'first' };
+
+       const hash1 = RsaV3Util.getSha256AndHexStr(params1, { contentType: 'application/json' }, 'POST');
+       const hash2 = RsaV3Util.getSha256AndHexStr(params2, { contentType: 'application/json' }, 'POST');
+       const hash3 = RsaV3Util.getSha256AndHexStr(params3, { contentType: 'application/json' }, 'POST');
+
+       // All should produce the same hash due to key sorting
+       expect(hash1).toBe(hash2);
+       expect(hash2).toBe(hash3);
+     });
+
+     it('should handle empty and null values in JSON params correctly', () => {
+       const params = {
+         emptyString: '',
+         nullValue: null,
+         undefinedValue: undefined,
+         zeroNumber: 0,
+         falseBoolean: false
+       };
+
+       const hash = RsaV3Util.getSha256AndHexStr(
+         params,
+         { contentType: 'application/json' },
+         'POST'
+       );
+
+       // Verify hash is computed correctly
+       expect(hash).toMatch(/^[a-f0-9]{64}$/);
+
+       // Create a copy and verify it produces the same hash
+       const paramsCopy = JSON.parse(JSON.stringify(params));
+       const hash2 = RsaV3Util.getSha256AndHexStr(
+         paramsCopy,
+         { contentType: 'application/json' },
+         'POST'
+       );
+
+       expect(hash2).toBe(hash);
+     });
   });
 });

@@ -4,6 +4,9 @@ node_modules/
 # Build output
 dist/
 
+# Auto-generated files
+src/utils/version.ts
+
 # Logs
 *.log
 npm-debug.log*
