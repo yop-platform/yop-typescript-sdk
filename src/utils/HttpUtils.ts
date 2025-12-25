@@ -74,8 +74,10 @@ export class HttpUtils {
     const encoded: Record<string, string> = {};
     for (const k in req.paramMap) {
       const v = req.paramMap[k];
-      // Cast v to any as HttpUtils.normalize is designed to handle various input types
-      encoded[this.normalize(k)] = this.normalize(v as any);
+      // Cast v to the types that HttpUtils.normalize accepts
+      encoded[this.normalize(k)] = this.normalize(
+        v as string | number | boolean | undefined | null,
+      );
     }
     return encoded;
   }
