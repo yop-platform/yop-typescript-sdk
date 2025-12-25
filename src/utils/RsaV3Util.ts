@@ -59,9 +59,6 @@ export class RsaV3Util {
     // 创建参数的副本，以便不修改原始参数
     const paramsCopy = JSON.parse(JSON.stringify(params));
 
-    // 计算内容哈希值（使用原始参数）
-    const contentSha256 = RsaV3Util.getSha256AndHexStr(params, config, method);
-
     // 对 JSON 参数进行 URL 编码（仅在需要时修改副本）
     if (config.contentType === 'application/json') {
       for (const key in paramsCopy) {
@@ -69,7 +66,8 @@ export class RsaV3Util {
         paramsCopy[key] = HttpUtils.normalize(paramsCopy[key] as any);
       }
     }
-
+    // 计算内容哈希值（使用转换后的参数）
+    const contentSha256 = RsaV3Util.getSha256AndHexStr(paramsCopy, config, method);
     const timestamp = formatDate(new Date(), 'yyyy-MM-ddThh:mm:ssZ');
     const authString = 'yop-auth-v3/' + appKey + '/' + timestamp + '/1800';
     const HTTPRequestMethod = method;
