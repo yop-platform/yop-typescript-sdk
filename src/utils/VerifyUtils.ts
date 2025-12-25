@@ -16,7 +16,7 @@ interface DigitalEnvelopeResult {
 export class VerifyUtils {
   /**
    * Extracts a public key from an X.509 certificate
-   * @param certificate - PEM formatted X.509 certificate
+   * @param certificate - PEM formatted X.509 certificate or DER format certificate (Buffer)
    * @returns Extracted public key in PEM format or null if extraction fails
    */
   static extractPublicKeyFromCertificate(
@@ -28,23 +28,68 @@ export class VerifyUtils {
         return null;
       }
 
+      // 如果输入是 Buffer（可能是 DER 格式的证书），优先处理
+      if (Buffer.isBuffer(certificate)) {
+        try {
+          // 首先尝试使用 X509Certificate 类（Node.js v15.6.0+）
+          // 这是处理 DER 格式证书的最佳方式
+          const cert = new crypto.X509Certificate(certificate);
+          const pemKey = cert.publicKey
+            .export({
+              type: 'spki',
+              format: 'pem',
+            })
+            .toString();
+          
+          // 将换行符替换为 \n，确保格式一致性
+          return pemKey.replace(/\r?\n/g, '\n');
+        } catch (x509Error) {
+          // 如果 X509Certificate 失败，尝试直接作为 DER 格式的 SPKI 处理
+          try {
+            const publicKey = crypto.createPublicKey({
+              key: certificate,
+              format: 'der',
+              type: 'spki',
+            });
+
+            const pemKey = publicKey
+              .export({
+                type: 'spki',
+                format: 'pem',
+              })
+              .toString();
+
+            return pemKey.replace(/\r?\n/g, '\n');
+          } catch (derError) {
+            console.error(
+              'Error extracting public key from DER certificate:',
+              derError,
+            );
+            return null;
+          }
+        }
+      }
+
       // 如果输入是字符串
       if (typeof certificate === 'string') {
+        // 规范化 PEM 字符串：修复换行符
+        let normalizedCert = certificate.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
         // 检查输入是否已经是格式良好的公钥
         if (
-          certificate.includes('-----BEGIN PUBLIC KEY-----') &&
-          certificate.includes('-----END PUBLIC KEY-----')
+          normalizedCert.includes('-----BEGIN PUBLIC KEY-----') &&
+          normalizedCert.includes('-----END PUBLIC KEY-----')
         ) {
-          // 对于测试用例，我们不验证公钥格式，直接返回
-          return certificate;
+          // 规范化公钥格式
+          return this.normalizePemFormat(normalizedCert);
         }
 
         // 检查输入是否是 PEM 格式的证书
-        if (certificate.includes('-----BEGIN CERTIFICATE-----')) {
+        if (normalizedCert.includes('-----BEGIN CERTIFICATE-----')) {
           try {
             // 使用 Node.js crypto 从 PEM 证书中提取公钥
             const publicKey = crypto.createPublicKey({
-              key: certificate,
+              key: normalizedCert,
               format: 'pem',
             });
 
@@ -67,51 +112,41 @@ export class VerifyUtils {
           }
         }
 
+        // 如果字符串不包含 PEM 标记，可能是被错误地以 UTF-8 方式读取的 DER 格式证书
+        // 尝试使用 latin1 编码将其转换回 Buffer 并作为 DER 格式处理
+        // 注意：latin1 编码保留所有字节的原始值（0x00-0xFF），比 UTF-8 更适合处理二进制数据
+        if (!normalizedCert.includes('-----BEGIN')) {
+          try {
+            // 使用 latin1 编码将字符串转换回 Buffer
+            const certBuffer = Buffer.from(certificate, 'latin1');
+            
+            // 检查是否看起来像 DER 格式（以 0x30 SEQUENCE 标签开头）
+            if (certBuffer.length > 0 && certBuffer[0] === 0x30) {
+              // 尝试使用 X509Certificate 类解析
+              try {
+                const cert = new crypto.X509Certificate(certBuffer);
+                const pemKey = cert.publicKey
+                  .export({
+                    type: 'spki',
+                    format: 'pem',
+                  })
+                  .toString();
+                return pemKey.replace(/\r?\n/g, '\n');
+              } catch (x509Error) {
+                // X509Certificate 失败，继续尝试其他方法
+              }
+            }
+          } catch (_derError) {
+            // latin1 转换失败，继续尝试其他方法
+          }
+        }
+
         // 如果输入看起来像是原始公钥（没有 PEM 头尾），尝试格式化它
         try {
-          const formattedKey = this.formatPublicKey(certificate);
+          const formattedKey = this.formatPublicKey(normalizedCert);
           return formattedKey;
         } catch (_error) {
           return null;
-        }
-      }
-      // 如果输入是 Buffer（可能是 DER 格式的证书）
-      else if (Buffer.isBuffer(certificate)) {
-        try {
-          // 尝试将 Buffer 作为 DER 格式的证书处理
-          const publicKey = crypto.createPublicKey({
-            key: certificate,
-            format: 'der',
-            type: 'spki',
-          });
-
-          // 导出 PEM 格式的公钥，确保格式一致性
-          const pemKey = publicKey
-            .export({
-              type: 'spki',
-              format: 'pem',
-            })
-            .toString();
-
-          // 将换行符替换为 \n，确保格式一致性
-          return pemKey.replace(/\r?\n/g, '\n');
-        } catch (_derError) {
-          // 如果上面的方法失败，尝试使用 X509Certificate 类（Node.js v15.6.0+）
-          try {
-            const cert = new crypto.X509Certificate(certificate);
-            return cert.publicKey
-              .export({
-                type: 'spki',
-                format: 'pem',
-              })
-              .toString();
-          } catch (x509Error) {
-            console.error(
-              'Error extracting public key from DER certificate:',
-              x509Error,
-            );
-            return null;
-          }
         }
       }
 
@@ -120,6 +155,67 @@ export class VerifyUtils {
     } catch (_error) {
       return null;
     }
+  }
+
+  /**
+   * Normalizes PEM format by ensuring proper line breaks and headers/footers
+   * @param pem - PEM formatted string
+   * @returns Normalized PEM string
+   */
+  private static normalizePemFormat(pem: string): string {
+    // 首先标准化换行符
+    let normalized = pem.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    
+    // 检查是否已经是正确的格式
+    const lines = normalized.split('\n');
+    const beginIndex = lines.findIndex(line => line.includes('-----BEGIN'));
+    const endIndex = lines.findIndex(line => line.includes('-----END'));
+    
+    // 如果没有找到标记或标记位置不对，返回原始输入
+    if (beginIndex === -1 || endIndex === -1 || endIndex <= beginIndex) {
+      return pem;
+    }
+    
+    // 提取标记 - 使用非空断言，因为我们已经验证了索引有效
+    const beginLine = lines[beginIndex];
+    const endLine = lines[endIndex];
+    if (!beginLine || !endLine) {
+      return pem;
+    }
+    const beginMarker = beginLine.trim();
+    const endMarker = endLine.trim();
+    
+    // 提取内容行（不包括标记行）
+    const contentLines: string[] = [];
+    for (let i = beginIndex + 1; i < endIndex; i++) {
+      const line = lines[i];
+      if (line) {
+        const trimmedLine = line.trim();
+        if (trimmedLine) {
+          contentLines.push(trimmedLine);
+        }
+      }
+    }
+    
+    // 重新组装，确保每行最多 64 字符
+    let formattedContent = '';
+    let currentLine = '';
+    
+    for (const line of contentLines) {
+      currentLine += line;
+      
+      if (currentLine.length >= 64) {
+        formattedContent += currentLine.substring(0, 64) + '\n';
+        currentLine = currentLine.substring(64);
+      }
+    }
+    
+    // 添加剩余的内容
+    if (currentLine) {
+      formattedContent += currentLine + '\n';
+    }
+    
+    return `${beginMarker}\n${formattedContent}${endMarker}`;
   }
 
   /**
@@ -139,12 +235,12 @@ export class VerifyUtils {
         return null;
       }
 
-      // 如果输入已经是格式良好的公钥，直接返回
+      // 如果输入已经是格式良好的公钥，直接返回（规范化格式）
       if (
         rawKey.includes('-----BEGIN PUBLIC KEY-----') &&
         rawKey.includes('-----END PUBLIC KEY-----')
       ) {
-        return rawKey;
+        return this.normalizePemFormat(rawKey);
       }
 
       // 清理输入，移除任何现有的 PEM 头尾和空白
@@ -155,6 +251,11 @@ export class VerifyUtils {
         .replace(/-----END CERTIFICATE-----/g, '')
         .replace(/\s+/g, '');
 
+      // 验证清理后的内容是否为有效的 base64
+      if (!/^[A-Za-z0-9+/=]+$/.test(cleanKey)) {
+        return null;
+      }
+
       // 格式化为 PEM 格式
       const BEGIN_MARKER = '-----BEGIN PUBLIC KEY-----';
       const END_MARKER = '-----END PUBLIC KEY-----';
@@ -164,11 +265,7 @@ export class VerifyUtils {
 
       while (start < len) {
         const chunk = cleanKey.substring(start, start + 64);
-        if (formattedKey.length) {
-          formattedKey += chunk + '\n';
-        } else {
-          formattedKey = chunk + '\n';
-        }
+        formattedKey += chunk + '\n';
         start += 64;
       }
 
@@ -225,6 +322,12 @@ export class VerifyUtils {
         sign += '=';
       }
 
+      // 验证签名是否为有效的 base64
+      if (!/^[A-Za-z0-9+/=]+$/.test(sign)) {
+        console.error('[VerifyUtils] Invalid signature format: not valid base64');
+        return false;
+      }
+
       // 3. 处理公钥
       let public_key: string | null = null;
 
@@ -254,7 +357,16 @@ export class VerifyUtils {
         return false;
       }
 
-      // 对于测试用例，我们不验证公钥格式
+      // 验证提取的公钥格式是否正确
+      try {
+        crypto.createPublicKey(public_key);
+      } catch (keyError) {
+        console.error(
+          '[VerifyUtils] Invalid public key format:',
+          keyError instanceof Error ? keyError.message : String(keyError),
+        );
+        return false;
+      }
 
       // 4. 验证签名
       try {
@@ -270,10 +382,18 @@ export class VerifyUtils {
           );
         }
         return res;
-      } catch (_verifyError: unknown) {
+      } catch (verifyError) {
+        console.error(
+          '[VerifyUtils] Signature verification error:',
+          verifyError instanceof Error ? verifyError.message : String(verifyError),
+        );
         return false;
       }
-    } catch (_error) {
+    } catch (error) {
+      console.error(
+        '[VerifyUtils] isValidRsaResult error:',
+        error instanceof Error ? error.message : String(error),
+      );
       return false;
     }
   }
@@ -426,9 +546,27 @@ export class VerifyUtils {
         sign += '=';
       }
 
+      // 验证签名是否为有效的 base64
+      if (!/^[A-Za-z0-9+/=]+$/.test(sign)) {
+        console.error('[VerifyUtils] Invalid signature format: not valid base64');
+        return false;
+      }
+
       // 处理公钥 - 使用改进的公钥处理逻辑
       const formattedPublicKey = this.formatPublicKey(publicKeyStr);
       if (!formattedPublicKey) {
+        console.error('[VerifyUtils] Failed to format public key');
+        return false;
+      }
+
+      // 验证提取的公钥格式是否正确
+      try {
+        crypto.createPublicKey(formattedPublicKey);
+      } catch (keyError) {
+        console.error(
+          '[VerifyUtils] Invalid public key format:',
+          keyError instanceof Error ? keyError.message : String(keyError),
+        );
         return false;
       }
 
@@ -443,10 +581,18 @@ export class VerifyUtils {
           );
         }
         return res;
-      } catch (_verifyError: unknown) {
+      } catch (verifyError) {
+        console.error(
+          '[VerifyUtils] Notification signature verification error:',
+          verifyError instanceof Error ? verifyError.message : String(verifyError),
+        );
         return false;
       }
-    } catch (_error) {
+    } catch (error) {
+      console.error(
+        '[VerifyUtils] isValidNotifyResult error:',
+        error instanceof Error ? error.message : String(error),
+      );
       return false;
     }
   }
@@ -457,7 +603,17 @@ export class VerifyUtils {
    * @returns Restored data
    */
   static base64_safe_handler(data: string): string {
-    return URLSafeBase64.decode(data).toString('base64');
+    try {
+      if (!data || typeof data !== 'string') {
+        return '';
+      }
+      return URLSafeBase64.decode(data).toString('base64');
+    } catch (error) {
+      console.error(
+        `[VerifyUtils] Base64 decoding failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new Error('Base64 decoding failed');
+    }
   }
 
   /**

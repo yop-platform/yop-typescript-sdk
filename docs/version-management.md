@@ -62,7 +62,7 @@ The SDK version is exposed in the `x-yop-sdk-version` HTTP header for all API re
 ```typescript
 import { SDK_VERSION } from '@yeepay/yop-typescript-sdk';
 
-console.log(`Using SDK version: ${SDK_VERSION}`); // "4.0.14"
+console.log(`Using SDK version: ${SDK_VERSION}`); // "4.0.16"
 ```
 
 ## Technical Details
@@ -80,7 +80,7 @@ The auto-generated [`src/utils/version.ts`](../src/utils/version.ts) looks like:
  * SDK version from package.json
  * @constant
  */
-export const SDK_VERSION = '4.0.14';
+export const SDK_VERSION = '4.0.16';
 
 /**
  * SDK package name

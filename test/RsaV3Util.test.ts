@@ -886,7 +886,7 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
     });
   });
 
-  describe('SDK Version and Parameter Handling Changes (v4.0.14)', () => {
+  describe('SDK Version and Parameter Handling Changes', () => {
      it('should set correct SDK version in headers', () => {
        const headers = RsaV3Util.getAuthHeaders({
          appKey: TEST_APP_KEY,

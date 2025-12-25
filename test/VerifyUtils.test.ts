@@ -12,9 +12,9 @@ const __dirname = path.dirname(__filename);
 describe('VerifyUtils', () => {
   describe('extractPublicKeyFromCertificate', () => {
     it('should extract public key from X.509 certificate', () => {
-      // 读取证书文件
+      // 读取证书文件（.cer 是 DER 格式的二进制文件，不要使用 utf-8）
       const certPath = path.resolve(__dirname, '../src/assets/yop_platform_rsa_cert_rsa.cer');
-      const certContent = fs.readFileSync(certPath, 'utf-8');
+      const certContent = fs.readFileSync(certPath);
 
       // 提取公钥
       const publicKey = VerifyUtils.extractPublicKeyFromCertificate(certContent);
@@ -26,7 +26,30 @@ describe('VerifyUtils', () => {
     });
 
     it('should return the input if it is already a public key', () => {
+      // 真正的公钥（从证书中提取的）
       const publicKey = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6p0XWjscY+gsyqKRhw9M
+eLsEmhFdBRhT2emOck/F1Omw38ZWhJxh9kDfs5HzFJMrVozgU+SJFDONxs8UB0wM
+ILKRmqfLcfClG9MyCNuJkkfm0HFQv1hRGdOvZPXj3Bckuwa7FrEXBRYUhK7vJ40a
+fumspthmse6bs6mZxNn/mALZ2X07uznOrrc2rk41Y2HftduxZw6T4EmtWuN2x4CZ
+8gwSyPAW5ZzZJLQ6tZDojBK4GZTAGhnn3bg5bBsBlw2+FLkCQBuDsJVsFPiGh/b6
+K/+zGTvWyUcu+LUj2MejYQELDO3i2vQXVDk7lVi2/TcUYefvIcssnzsfCfjaorxs
+uwIDAQAB
+-----END PUBLIC KEY-----`;
+
+      const result = VerifyUtils.extractPublicKeyFromCertificate(publicKey);
+
+      expect(result).not.toBeNull();
+      expect(result).toContain('-----BEGIN PUBLIC KEY-----');
+      expect(result).toContain('-----END PUBLIC KEY-----');
+
+      // 验证提取的公钥可以被 crypto 模块使用
+      expect(() => crypto.createPublicKey(result!)).not.toThrow();
+    });
+
+    it('should extract public key from X.509 certificate with correct PEM markers', () => {
+      // 完整的 X.509 证书（使用正确的 CERTIFICATE 标记）
+      const certificate = `-----BEGIN CERTIFICATE-----
 MIIE2TCCA8GgAwIBAgIFQ5cTlZgwDQYJKoZIhvcNAQELBQAwWDELMAkGA1UEBhMC
 Q04xMDAuBgNVBAoMJ0NoaW5hIEZpbmFuY2lhbCBDZXJ0aWZpY2F0aW9uIEF1dGhv
 cml0eTEXMBUGA1UEAwwOQ0ZDQSBBQ1MgT0NBMzEwHhcNMjEwNDI1MDIwOTAwWhcN
@@ -53,11 +76,16 @@ MDLmz62USS4DJlZ2EWMxPm0bKpuAPsWb3+EtvizyZ0l1gX/D0YHDcH+VljYlGAv+
 yQEUzD+0c9NZSWr4V19yRVDQEicll5hJko7RFQUrwW+wNSrexzlyQFbUlbljwAnH
 O0TF3zgTXKRu2YNiKZGlxr28FjOeMQdvpiNqHCW9ACjQqL0vz1l9IImn0lm+0vh0
 YhAN0oFzJZvs5lFG9Bg+kNkyhgf9eVcUUxXKnA6UwXq2amoTa4Iq3NW6YuPI
------END PUBLIC KEY-----`;
+-----END CERTIFICATE-----`;
 
-      const result = VerifyUtils.extractPublicKeyFromCertificate(publicKey);
+      const result = VerifyUtils.extractPublicKeyFromCertificate(certificate);
 
-      expect(result).toBe(publicKey);
+      expect(result).not.toBeNull();
+      expect(result).toContain('-----BEGIN PUBLIC KEY-----');
+      expect(result).toContain('-----END PUBLIC KEY-----');
+
+      // 验证提取的公钥可以被 crypto 模块使用
+      expect(() => crypto.createPublicKey(result!)).not.toThrow();
     });
 
     it('should format raw key string into PEM format', () => {
@@ -146,9 +174,9 @@ INVALID_CERTIFICATE_DATA_THAT_WILL_FAIL_PARSING
     });
 
     it('should verify a valid signature with public key extracted from certificate', () => {
-      // 读取证书文件
+      // 读取证书文件（.cer 是 DER 格式的二进制文件，不要使用 utf-8）
       const certPath = path.resolve(__dirname, '../src/assets/yop_platform_rsa_cert_rsa.cer');
-      const certContent = fs.readFileSync(certPath, 'utf-8');
+      const certContent = fs.readFileSync(certPath);
 
       // 从证书中提取公钥 - 这里我们只测试提取功能，不测试验证
       // 因为我们没有与证书匹配的私钥来生成有效签名
