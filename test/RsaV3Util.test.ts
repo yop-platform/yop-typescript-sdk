@@ -1,5 +1,6 @@
 import { RsaV3Util } from '../src/utils/RsaV3Util';
 import { HttpUtils } from '../src/utils/HttpUtils';
+import { SDK_VERSION } from '../src/utils/version.js';
 import crypto from 'crypto';
 
 // --- Test Data ---
@@ -862,7 +863,7 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
     });
   });
 
-  describe('SDK Version and Parameter Handling Changes (v4.0.13)', () => {
+  describe('SDK Version and Parameter Handling Changes (v4.0.14)', () => {
      it('should set correct SDK version in headers', () => {
        const headers = RsaV3Util.getAuthHeaders({
          appKey: TEST_APP_KEY,
@@ -873,7 +874,7 @@ CQXjYOTDHlQQJBFvQo0Z5/Ft
          config: { contentType: '' }
        });
 
-       expect(headers['x-yop-sdk-version']).toBe('4.0.13');
+       expect(headers['x-yop-sdk-version']).toBe(SDK_VERSION);
        expect(headers['x-yop-sdk-lang']).toBe('@yeepay/yop-typescript-sdk');
      });
 

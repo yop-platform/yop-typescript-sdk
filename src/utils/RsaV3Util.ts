@@ -1,5 +1,6 @@
 import { getUniqueId } from './GetUniqueId.js';
 import { HttpUtils } from './HttpUtils.js';
+import { SDK_VERSION } from './version.js';
 import crypto from 'crypto';
 import md5 from 'md5';
 import { AuthHeaderOptions } from './types.js';
@@ -63,6 +64,7 @@ export class RsaV3Util {
     // 注意: getSha256AndHexStr 内部会根据 contentType 和 method 进行适当的处理
     // - JSON POST: 直接 JSON 序列化
     // - GET/form POST: 通过 getCanonicalParams 进行 URL 编码
+    console.debug(`[RsaV3Util] Generating auth headers for ${method} ${url}`);
     const contentSha256 = RsaV3Util.getSha256AndHexStr(
       paramsCopy,
       config,
@@ -105,13 +107,17 @@ export class RsaV3Util {
     // Prepare all headers for the actual HTTP request
     const allHeaders: Record<string, string> = {
       ...headersToSign, // Include signed headers
-      'x-yop-sdk-version': '4.0.13', // 根据实际使用的SDK版本调整
+      'x-yop-sdk-version': SDK_VERSION, // Auto-generated from package.json
       'x-yop-sdk-lang': '@yeepay/yop-typescript-sdk',
       // Authorization header will be added after signing
     };
 
     // Generate signature using the sign method
     const signToBase64 = RsaV3Util.sign(CanonicalRequest, secretKey);
+
+    console.debug(
+      `[RsaV3Util] Generated signature for ${method} ${url}, Request ID: ${headersToSign['x-yop-request-id']}`,
+    );
 
     // Construct auth header using the correctly generated signedHeadersString
     allHeaders.Authorization =
@@ -372,6 +378,9 @@ export class RsaV3Util {
    * @returns The signature string (Base64 URL Safe + $SHA256)
    */
   public static sign(canonicalRequest: string, secretKey: string): string {
+    console.debug(
+      `[RsaV3Util] Signing canonical request, length: ${canonicalRequest.length}`,
+    );
     // Check if secretKey is already in PEM format
     const private_key = secretKey.includes('-----BEGIN PRIVATE KEY-----')
       ? secretKey

@@ -81,6 +81,9 @@ export class YopClient {
       if (config.yopPublicKey) {
         loadedYopPublicKey = config.yopPublicKey;
         publicKeyLoadSource = "config object";
+        console.debug(
+          `[YopClient Config] Loaded YOP public key from config object`,
+        );
       }
     } else {
       // No config provided, use environment variables for base settings
@@ -95,6 +98,9 @@ export class YopClient {
         // 1. Try YOP_PUBLIC_KEY environment variable
         loadedYopPublicKey = envYopPublicKey;
         publicKeyLoadSource = "YOP_PUBLIC_KEY env var";
+        console.debug(
+          `[YopClient Config] Loaded YOP public key from YOP_PUBLIC_KEY env var`,
+        );
       } else if (envYopPublicKeyPath) {
         // 2. Try YOP_PUBLIC_KEY_PATH environment variable
         publicKeyLoadSource = `YOP_PUBLIC_KEY_PATH env var (${envYopPublicKeyPath})`;
@@ -138,6 +144,9 @@ export class YopClient {
         } catch (err: unknown) { // Type the caught error
           const errorMessage = err instanceof Error ? err.message : String(err);
           // If default file also fails, this is a critical error
+          console.error(
+            `[YopClient Config] Failed to load YOP public key from default path (${defaultPublicKeyPath}): ${errorMessage}`,
+          );
           throw new Error(
             `[YopClient Config] Failed to load YOP public key from default path (${defaultPublicKeyPath}): ${errorMessage}. Configuration failed.`,
           );
@@ -197,6 +206,9 @@ export class YopClient {
       } catch (x509Error) {
         // 如果两种方法都失败，抛出错误
         const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(
+          `[YopClient] Failed to extract public key from certificate: ${errorMessage}`,
+        );
         throw new Error(`Failed to extract public key from certificate: ${errorMessage}`);
       }
     }
@@ -246,6 +258,9 @@ export class YopClient {
         });
       } catch (sdkError: unknown) { // Type the caught error
         const errorMessage = sdkError instanceof Error ? sdkError.message : String(sdkError);
+        console.error(
+          `[YopClient] Failed to generate YOP headers (GET with params): ${errorMessage}`,
+        );
         throw new Error(
           `Failed to generate YOP headers (GET with params): ${errorMessage}`,
         );
@@ -261,6 +276,9 @@ export class YopClient {
         });
       } catch (sdkError: unknown) { // Type the caught error
         const errorMessage = sdkError instanceof Error ? sdkError.message : String(sdkError);
+        console.error(
+          `[YopClient] Failed to generate YOP headers (POST): ${errorMessage}`,
+        );
         throw new Error(
           `Failed to generate YOP headers (POST): ${errorMessage}`,
         );
@@ -285,6 +303,9 @@ export class YopClient {
         });
       } catch (sdkError: unknown) { // Type the caught error
         const errorMessage = sdkError instanceof Error ? sdkError.message : String(sdkError);
+        console.error(
+          `[YopClient] Failed to generate YOP headers (GET no params): ${errorMessage}`,
+        );
         throw new Error(
           `Failed to generate YOP headers (GET no params): ${errorMessage}`,
         );
@@ -317,8 +338,8 @@ export class YopClient {
 
     let response: Response;
     try {
-      console.info(`[YopClient] fetch: ${fullFetchUrl.toString()}`);
-      console.info(`[YopClient] fetchOptions: ${JSON.stringify(fetchOptions, null, 2)}`);
+      console.debug(`[YopClient] fetch: ${fullFetchUrl.toString()}`);
+      console.debug(`[YopClient] fetchOptions: ${JSON.stringify(fetchOptions, null, 2)}`);
       response = await fetch(fullFetchUrl.toString(), fetchOptions);
       clearTimeout(timeoutId);
     } catch (fetchError: unknown) { // Type the caught error
@@ -329,6 +350,9 @@ export class YopClient {
         );
       }
       const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      console.error(
+        `[YopClient] Network error calling YeePay API (${fullFetchUrl.toString()}): ${errorMessage}`,
+      );
       throw new Error(
         `Network error calling YeePay API: ${errorMessage}`,
       );
@@ -347,13 +371,18 @@ export class YopClient {
           publicKey: yopPublicKey!, // Assert non-null: constructor logic ensures it's defined here
         })
       ) {
+        console.error(
+          `[YopClient] Invalid response signature from YeePay. URL: ${fullFetchUrl.toString()}, Sign: ${yopSign}`,
+        );
         throw new Error("Invalid response signature from YeePay");
       }
     } else {
       // Decide if missing signature is always an error, or only for successful responses
       if (response.ok) {
         // Potentially throw an error here if signature is mandatory for success
-        // console.warn(`[YopClient] Missing x-yop-sign header in successful response: ${method} ${apiUrl}`);
+        console.warn(
+          `[YopClient] Missing x-yop-sign header in successful response: ${method} ${apiUrl}`,
+        );
       }
     }
 
@@ -373,8 +402,13 @@ export class YopClient {
         }
       } catch (e: unknown) { // Type the caught error
         // Ignore parsing error, use raw text
-        // console.error(`Error parsing error response: ${e instanceof Error ? e.message : String(e)}`);
+        console.warn(
+          `[YopClient] Failed to parse error response as JSON: ${e instanceof Error ? e.message : String(e)}. Using raw text.`,
+        );
       }
+      console.error(
+        `[YopClient] YeePay API HTTP Error: Status=${response.status}, Details=${errorDetails}, URL: ${fullFetchUrl.toString()}`,
+      );
       throw new Error(
         `YeePay API HTTP Error: Status=${response.status}, Details=${errorDetails}`,
       );
@@ -399,6 +433,9 @@ export class YopClient {
       // Only throw parse error if the body was not empty
       if (responseBodyText.trim() !== "") {
         const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+        console.error(
+          `[YopClient] Invalid JSON response received from YeePay API: ${responseBodyText}. Parse Error: ${errorMessage}`,
+        );
         throw new Error(
           `Invalid JSON response received from YeePay API: ${responseBodyText}. Parse Error: ${errorMessage}`,
         );
@@ -416,6 +453,9 @@ export class YopClient {
     if (responseData.state && responseData.state !== "SUCCESS") {
       const error = responseData.error;
       const errorMessage = `YeePay API Business Error: State=${responseData.state}, Code=${error?.code || "N/A"}, Message=${error?.message || "Unknown error"}`;
+      console.error(
+        `[YopClient] ${errorMessage}, URL: ${fullFetchUrl.toString()}`,
+      );
       throw new Error(errorMessage);
     }
 

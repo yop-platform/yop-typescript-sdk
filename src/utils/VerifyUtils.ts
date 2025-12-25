@@ -264,6 +264,11 @@ export class VerifyUtils {
 
         // 执行验证
         const res = verify.verify(public_key, sign, 'base64');
+        if (!res) {
+          console.error(
+            `[VerifyUtils] RSA signature verification failed. Sign: ${params.sign.substring(0, 20)}..., Data length: ${sb.length}`,
+          );
+        }
         return res;
       } catch (_verifyError: unknown) {
         return false;
@@ -365,6 +370,9 @@ export class VerifyUtils {
           event.message = '验签失败';
         }
       } catch (error) {
+        console.error(
+          `[VerifyUtils] Digital envelope processing failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
         event.message = error instanceof Error ? error.message : String(error);
       }
     }
@@ -429,6 +437,11 @@ export class VerifyUtils {
         const verify = crypto.createVerify('RSA-SHA256');
         verify.update(sb);
         const res = verify.verify(formattedPublicKey, sign, 'base64');
+        if (!res) {
+          console.error(
+            `[VerifyUtils] Notification signature verification failed. Sign: ${sign.substring(0, 20)}...`,
+          );
+        }
         return res;
       } catch (_verifyError: unknown) {
         return false;
