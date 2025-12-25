@@ -59,14 +59,10 @@ export class RsaV3Util {
     // 创建参数的副本，以便不修改原始参数
     const paramsCopy = JSON.parse(JSON.stringify(params));
 
-    // 对 JSON 参数进行 URL 编码（仅在需要时修改副本）
-    if (config.contentType === 'application/json') {
-      for (const key in paramsCopy) {
-        // Cast paramsCopy[key] to any as HttpUtils.normalize is designed to handle various input types
-        paramsCopy[key] = HttpUtils.normalize(paramsCopy[key] as any);
-      }
-    }
-    // 计算内容哈希值（使用转换后的参数）
+    // 计算内容哈希值
+    // 注意: getSha256AndHexStr 内部会根据 contentType 和 method 进行适当的处理
+    // - JSON POST: 直接 JSON 序列化
+    // - GET/form POST: 通过 getCanonicalParams 进行 URL 编码
     const contentSha256 = RsaV3Util.getSha256AndHexStr(paramsCopy, config, method);
     const timestamp = formatDate(new Date(), 'yyyy-MM-ddThh:mm:ssZ');
     const authString = 'yop-auth-v3/' + appKey + '/' + timestamp + '/1800';
@@ -105,7 +101,7 @@ export class RsaV3Util {
     // Prepare all headers for the actual HTTP request
     const allHeaders: Record<string, string> = {
       ...headersToSign, // Include signed headers
-      'x-yop-sdk-version': '4.0.12', // 根据实际使用的SDK版本调整
+      'x-yop-sdk-version': '4.0.13', // 根据实际使用的SDK版本调整
       'x-yop-sdk-lang': '@yeepay/yop-typescript-sdk',
       // Authorization header will be added after signing
     };
@@ -319,18 +315,6 @@ export class RsaV3Util {
       config.contentType.includes('application/json') &&
       method.toLowerCase() === 'post'
     ) {
-      // 特殊处理：检查是否匹配 Java SDK 日志中的特定 JSON 对象
-      if (
-        Object.keys(params).length === 2 &&
-        'city' in params &&
-        'name' in params &&
-        params.city === '上海' &&
-        params.name === '张三'
-      ) {
-        // 直接返回 Java SDK 日志中的哈希值
-        return '03357a578289a6aab9b27ce7d53dbf5aedf8f1121d60dd0b455eaa83db8a424e';
-      }
-
       // 对对象的键进行排序，以确保生成一致的 JSON 字符串
       const sortedParams = this.sortObjectKeys(params);
       str = JSON.stringify(sortedParams);
