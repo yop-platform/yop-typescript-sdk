@@ -63,7 +63,11 @@ export class RsaV3Util {
     // 注意: getSha256AndHexStr 内部会根据 contentType 和 method 进行适当的处理
     // - JSON POST: 直接 JSON 序列化
     // - GET/form POST: 通过 getCanonicalParams 进行 URL 编码
-    const contentSha256 = RsaV3Util.getSha256AndHexStr(paramsCopy, config, method);
+    const contentSha256 = RsaV3Util.getSha256AndHexStr(
+      paramsCopy,
+      config,
+      method,
+    );
     const timestamp = formatDate(new Date(), 'yyyy-MM-ddThh:mm:ssZ');
     const authString = 'yop-auth-v3/' + appKey + '/' + timestamp + '/1800';
     const HTTPRequestMethod = method;
@@ -232,14 +236,20 @@ export class RsaV3Util {
       let normalizedValue: string;
 
       if (type === 'application/x-www-form-urlencoded') {
-        // Cast value to any as HttpUtils.normalize is designed to handle various input types
+        // normalize accepts string | number | boolean | undefined | null
         normalizedValue = HttpUtils.normalize(
-          HttpUtils.normalize(value as any),
+          HttpUtils.normalize(
+            value as string | number | boolean | undefined | null,
+          ),
         );
       } else {
-        // Cast value to any as HttpUtils.normalize is designed to handle various input types
+        // normalize accepts string | number | boolean | undefined | null
         // Note: normalize itself calls toString() if value is not null/undefined
-        normalizedValue = HttpUtils.normalize((value as any)?.toString());
+        const valueStr =
+          value !== null && value !== undefined
+            ? String(value)
+            : (value as undefined | null);
+        normalizedValue = HttpUtils.normalize(valueStr);
       }
 
       paramStrings.push(normalizedKey + '=' + normalizedValue);
