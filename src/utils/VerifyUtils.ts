@@ -40,10 +40,10 @@ export class VerifyUtils {
               format: 'pem',
             })
             .toString();
-          
+
           // 将换行符替换为 \n，确保格式一致性
           return pemKey.replace(/\r?\n/g, '\n');
-        } catch (x509Error) {
+        } catch (_x509Error) {
           // 如果 X509Certificate 失败，尝试直接作为 DER 格式的 SPKI 处理
           try {
             const publicKey = crypto.createPublicKey({
@@ -73,7 +73,9 @@ export class VerifyUtils {
       // 如果输入是字符串
       if (typeof certificate === 'string') {
         // 规范化 PEM 字符串：修复换行符
-        let normalizedCert = certificate.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const normalizedCert = certificate
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n');
 
         // 检查输入是否已经是格式良好的公钥
         if (
@@ -119,7 +121,7 @@ export class VerifyUtils {
           try {
             // 使用 latin1 编码将字符串转换回 Buffer
             const certBuffer = Buffer.from(certificate, 'latin1');
-            
+
             // 检查是否看起来像 DER 格式（以 0x30 SEQUENCE 标签开头）
             if (certBuffer.length > 0 && certBuffer[0] === 0x30) {
               // 尝试使用 X509Certificate 类解析
@@ -132,7 +134,7 @@ export class VerifyUtils {
                   })
                   .toString();
                 return pemKey.replace(/\r?\n/g, '\n');
-              } catch (x509Error) {
+              } catch (_x509Error) {
                 // X509Certificate 失败，继续尝试其他方法
               }
             }
@@ -164,18 +166,18 @@ export class VerifyUtils {
    */
   private static normalizePemFormat(pem: string): string {
     // 首先标准化换行符
-    let normalized = pem.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
+    const normalized = pem.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
     // 检查是否已经是正确的格式
     const lines = normalized.split('\n');
-    const beginIndex = lines.findIndex(line => line.includes('-----BEGIN'));
-    const endIndex = lines.findIndex(line => line.includes('-----END'));
-    
+    const beginIndex = lines.findIndex((line) => line.includes('-----BEGIN'));
+    const endIndex = lines.findIndex((line) => line.includes('-----END'));
+
     // 如果没有找到标记或标记位置不对，返回原始输入
     if (beginIndex === -1 || endIndex === -1 || endIndex <= beginIndex) {
       return pem;
     }
-    
+
     // 提取标记 - 使用非空断言，因为我们已经验证了索引有效
     const beginLine = lines[beginIndex];
     const endLine = lines[endIndex];
@@ -184,7 +186,7 @@ export class VerifyUtils {
     }
     const beginMarker = beginLine.trim();
     const endMarker = endLine.trim();
-    
+
     // 提取内容行（不包括标记行）
     const contentLines: string[] = [];
     for (let i = beginIndex + 1; i < endIndex; i++) {
@@ -196,25 +198,25 @@ export class VerifyUtils {
         }
       }
     }
-    
+
     // 重新组装，确保每行最多 64 字符
     let formattedContent = '';
     let currentLine = '';
-    
+
     for (const line of contentLines) {
       currentLine += line;
-      
+
       if (currentLine.length >= 64) {
         formattedContent += currentLine.substring(0, 64) + '\n';
         currentLine = currentLine.substring(64);
       }
     }
-    
+
     // 添加剩余的内容
     if (currentLine) {
       formattedContent += currentLine + '\n';
     }
-    
+
     return `${beginMarker}\n${formattedContent}${endMarker}`;
   }
 
@@ -324,7 +326,9 @@ export class VerifyUtils {
 
       // 验证签名是否为有效的 base64
       if (!/^[A-Za-z0-9+/=]+$/.test(sign)) {
-        console.error('[VerifyUtils] Invalid signature format: not valid base64');
+        console.error(
+          '[VerifyUtils] Invalid signature format: not valid base64',
+        );
         return false;
       }
 
@@ -385,7 +389,9 @@ export class VerifyUtils {
       } catch (verifyError) {
         console.error(
           '[VerifyUtils] Signature verification error:',
-          verifyError instanceof Error ? verifyError.message : String(verifyError),
+          verifyError instanceof Error
+            ? verifyError.message
+            : String(verifyError),
         );
         return false;
       }
@@ -548,7 +554,9 @@ export class VerifyUtils {
 
       // 验证签名是否为有效的 base64
       if (!/^[A-Za-z0-9+/=]+$/.test(sign)) {
-        console.error('[VerifyUtils] Invalid signature format: not valid base64');
+        console.error(
+          '[VerifyUtils] Invalid signature format: not valid base64',
+        );
         return false;
       }
 
@@ -584,7 +592,9 @@ export class VerifyUtils {
       } catch (verifyError) {
         console.error(
           '[VerifyUtils] Notification signature verification error:',
-          verifyError instanceof Error ? verifyError.message : String(verifyError),
+          verifyError instanceof Error
+            ? verifyError.message
+            : String(verifyError),
         );
         return false;
       }
