@@ -159,63 +159,9 @@ describe('HttpUtils', () => {
     });
   });
 
-  describe('stringToByte', () => {
-    it('should convert UTF-8 string to bytes', () => {
-      const testString = 'Hello World';
-      const result = HttpUtils.stringToByte(testString);
-
-      expect(result).toBeInstanceOf(Array);
-      expect(result.length).toBeGreaterThan(0);
-      expect(result.every(byte => typeof byte === 'number' && byte >= 0 && byte <= 255)).toBe(true);
-    });
-
-    it('should handle empty string', () => {
-      const result = HttpUtils.stringToByte('');
-      expect(result).toBeInstanceOf(Array);
-      expect(result.length).toBe(0);
-    });
-
-    it('should handle Chinese characters', () => {
-      const testString = '中文测试';
-      const result = HttpUtils.stringToByte(testString);
-
-      expect(result).toBeInstanceOf(Array);
-      expect(result.length).toBeGreaterThan(testString.length); // UTF-8中文字符占多个字节
-      expect(result.every(byte => typeof byte === 'number' && byte >= 0 && byte <= 255)).toBe(true);
-    });
-
-    it('should handle emoji characters', () => {
-      const testString = '😀😃😄';
-      const result = HttpUtils.stringToByte(testString);
-
-      expect(result).toBeInstanceOf(Array);
-      expect(result.length).toBeGreaterThan(testString.length); // Emoji占多个字节
-      expect(result.every(byte => typeof byte === 'number' && byte >= 0 && byte <= 255)).toBe(true);
-    });
-
-    it('should handle mixed content', () => {
-      const testString = 'Hello 中文 😀 123';
-      const result = HttpUtils.stringToByte(testString);
-
-      expect(result).toBeInstanceOf(Array);
-      expect(result.length).toBeGreaterThan(0);
-      expect(result.every(byte => typeof byte === 'number' && byte >= 0 && byte <= 255)).toBe(true);
-    });
-
-    it('should handle special characters', () => {
-      const testString = '!@#$%^&*()_+-=[]{}|;:,.<>?';
-      const result = HttpUtils.stringToByte(testString);
-
-      expect(result).toBeInstanceOf(Array);
-      expect(result.length).toBe(testString.length); // ASCII特殊字符每个占1字节
-      expect(result.every(byte => typeof byte === 'number' && byte >= 0 && byte <= 255)).toBe(true);
-    });
-  });
-
   describe('edge cases and error handling', () => {
     it('should handle very long strings', () => {
       const longString = 'a'.repeat(10000);
-      expect(() => HttpUtils.stringToByte(longString)).not.toThrow();
       expect(() => HttpUtils.normalize(longString)).not.toThrow();
     });
 

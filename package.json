@@ -55,13 +55,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git@github.com:yop-platform/yop-typescript-sdk.git"
+    "url": "git+ssh://git@github.com/yop-platform/yop-typescript-sdk.git"
   },
   "publishConfig": {
     "access": "public"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",

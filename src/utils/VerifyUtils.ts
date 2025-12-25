@@ -71,7 +71,7 @@ export class VerifyUtils {
         try {
           const formattedKey = this.formatPublicKey(certificate);
           return formattedKey;
-        } catch (error) {
+        } catch (_error) {
           return null;
         }
       }
@@ -95,7 +95,7 @@ export class VerifyUtils {
 
           // 将换行符替换为 \n，确保格式一致性
           return pemKey.replace(/\r?\n/g, '\n');
-        } catch (derError) {
+        } catch (_derError) {
           // 如果上面的方法失败，尝试使用 X509Certificate 类（Node.js v15.6.0+）
           try {
             const cert = new crypto.X509Certificate(certificate);
@@ -117,7 +117,7 @@ export class VerifyUtils {
 
       // 如果所有方法都失败，返回 null
       return null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -173,7 +173,7 @@ export class VerifyUtils {
       }
 
       return BEGIN_MARKER + '\n' + formattedKey + END_MARKER;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -239,7 +239,7 @@ export class VerifyUtils {
             const certBuffer = Buffer.from(params.publicKey, 'base64');
             public_key = this.extractPublicKeyFromCertificate(certBuffer);
           }
-        } catch (e) {
+        } catch (_e) {
           // 忽略错误，继续尝试其他方法
         }
 
@@ -265,10 +265,10 @@ export class VerifyUtils {
         // 执行验证
         const res = verify.verify(public_key, sign, 'base64');
         return res;
-      } catch (verifyError: unknown) {
+      } catch (_verifyError: unknown) {
         return false;
       }
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -301,14 +301,14 @@ export class VerifyUtils {
         try {
           JSON.parse(looseMatch[1]);
           return looseMatch[1];
-        } catch (e) {
+        } catch (_e) {
           // 如果解析失败，忽略并继续
         }
       }
 
       // 如果所有方法都失败，返回空字符串
       return '';
-    } catch (e) {
+    } catch (_e) {
       // 如果 JSON 解析失败，回退到正则表达式方法
       const match = str.match(/"result"\s*:\s*({.*?})\s*,\s*"ts"/s);
       return match ? (match[1] ?? '') : '';
@@ -430,10 +430,10 @@ export class VerifyUtils {
         verify.update(sb);
         const res = verify.verify(formattedPublicKey, sign, 'base64');
         return res;
-      } catch (verifyError: unknown) {
+      } catch (_verifyError: unknown) {
         return false;
       }
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -534,7 +534,7 @@ export class VerifyUtils {
           // Validate if the extracted part is valid JSON (optional but good)
           JSON.parse(result);
           return result;
-        } catch (e) {
+        } catch (_e) {
           return ''; // Return empty or throw if validation fails
         }
       }

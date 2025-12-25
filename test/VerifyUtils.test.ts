@@ -74,6 +74,39 @@ YhAN0oFzJZvs5lFG9Bg+kNkyhgf9eVcUUxXKnA6UwXq2amoTa4Iq3NW6YuPI
       const cleanedResult = result!.replace(/-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|[\s\n]+/g, '');
       expect(cleanedResult).toBe(cleanedRawKey);
     });
+
+    it('[P2] should return null for empty string input', () => {
+      const result = VerifyUtils.extractPublicKeyFromCertificate('');
+      expect(result).toBeNull();
+    });
+
+    it('[P2] should return null for null input', () => {
+      const result = VerifyUtils.extractPublicKeyFromCertificate(null as any);
+      expect(result).toBeNull();
+    });
+
+    it('[P2] should return null for undefined input', () => {
+      const result = VerifyUtils.extractPublicKeyFromCertificate(undefined as any);
+      expect(result).toBeNull();
+    });
+
+    it('[P2] should return null for invalid PEM certificate', () => {
+      const invalidCert = `-----BEGIN CERTIFICATE-----
+INVALID_CERTIFICATE_DATA_THAT_WILL_FAIL_PARSING
+-----END CERTIFICATE-----`;
+
+      const result = VerifyUtils.extractPublicKeyFromCertificate(invalidCert);
+      // Should handle error gracefully and return null
+      expect(result).toBeNull();
+    });
+
+    it('[P2] should attempt to format malformed input as raw key', () => {
+      // If input doesn't match known patterns, it treats it as a raw key string
+      const malformedCert = 'This is not a certificate at all';
+      const result = VerifyUtils.extractPublicKeyFromCertificate(malformedCert);
+      // The function will try to format it as a PEM key
+      expect(result).toContain('BEGIN PUBLIC KEY');
+    });
   });
 
   describe('isValidRsaResult', () => {
@@ -938,5 +971,443 @@ YhAN0oFzJZvs5lFG9Bg+kNkyhgf9eVcUUxXKnA6UwXq2amoTa4Iq3NW6YuPI
       expect(result).toContain('nested');
       expect(result).toContain('array');
     });
+  });
+
+  describe('RSA Padding Changes (RSA_PKCS1_PADDING)', () => {
+     it('should decrypt with RSA_PKCS1_PADDING correctly', () => {
+       // Generate a test key pair
+       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: {
+           type: 'spki',
+           format: 'pem'
+         },
+         privateKeyEncoding: {
+           type: 'pkcs8',
+           format: 'pem'
+         }
+       });
+
+       const testData = 'Test data for PKCS1 padding';
+
+       // Encrypt with PKCS1 padding
+       const encrypted = crypto.publicEncrypt(
+         {
+           key: publicKey,
+           padding: crypto.constants.RSA_PKCS1_PADDING
+         },
+         Buffer.from(testData)
+       );
+
+       // Decrypt using VerifyUtils.rsaDecrypt (should use PKCS1 padding)
+       const decrypted = VerifyUtils.rsaDecrypt(encrypted.toString('base64'), privateKey);
+
+       expect(decrypted.toString()).toBe(testData);
+     });
+
+     it('should specifically use PKCS1 padding (not OAEP)', () => {
+       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: {
+           type: 'spki',
+           format: 'pem'
+         },
+         privateKeyEncoding: {
+           type: 'pkcs8',
+           format: 'pem'
+         }
+       });
+
+       const testData = 'Test data encrypted with OAEP';
+
+       // Encrypt with OAEP padding
+       const encrypted = crypto.publicEncrypt(
+         {
+           key: publicKey,
+           padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+         },
+         Buffer.from(testData)
+       );
+
+       // VerifyUtils.rsaDecrypt uses PKCS1 padding, so decrypting OAEP data
+       // will produce garbage or fail (padding mismatch)
+       const decrypted = VerifyUtils.rsaDecrypt(encrypted.toString('base64'), privateKey);
+
+       // Result should NOT match original data (padding mismatch)
+       expect(decrypted.toString()).not.toBe(testData);
+     });
+
+     it('should handle various data sizes with PKCS1 padding', () => {
+       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: {
+           type: 'spki',
+           format: 'pem'
+         },
+         privateKeyEncoding: {
+           type: 'pkcs8',
+           format: 'pem'
+         }
+       });
+
+       // Test different data sizes
+       const testCases = [
+         'A',
+         'Short message',
+         'Medium length message with some special chars: @#$%^&*()',
+         'Longer message with unicode: 你好世界 🌍 Testing PKCS1 padding with various character sets including 日本語 and العربية',
+         Buffer.alloc(100).fill('X').toString(), // Large block of data
+       ];
+
+       testCases.forEach((testData, index) => {
+         const encrypted = crypto.publicEncrypt(
+           {
+             key: publicKey,
+             padding: crypto.constants.RSA_PKCS1_PADDING
+           },
+           Buffer.from(testData)
+         );
+
+         const decrypted = VerifyUtils.rsaDecrypt(encrypted.toString('base64'), privateKey);
+         expect(decrypted.toString()).toBe(testData);
+       });
+     });
+
+     it('should handle Chinese characters correctly with PKCS1 padding', () => {
+       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: {
+           type: 'spki',
+           format: 'pem'
+         },
+         privateKeyEncoding: {
+           type: 'pkcs8',
+           format: 'pem'
+         }
+       });
+
+       const chineseData = '这是一个包含中文字符的测试数据。姓名：张三，城市：北京。';
+
+       const encrypted = crypto.publicEncrypt(
+         {
+           key: publicKey,
+           padding: crypto.constants.RSA_PKCS1_PADDING
+         },
+         Buffer.from(chineseData, 'utf8')
+       );
+
+       const decrypted = VerifyUtils.rsaDecrypt(encrypted.toString('base64'), privateKey);
+       expect(decrypted.toString('utf8')).toBe(chineseData);
+     });
+
+     it('should handle binary data with PKCS1 padding', () => {
+       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: {
+           type: 'spki',
+           format: 'pem'
+         },
+         privateKeyEncoding: {
+           type: 'pkcs8',
+           format: 'pem'
+         }
+       });
+
+       // Create binary data (e.g., an AES key)
+       const binaryData = crypto.randomBytes(32);
+
+       const encrypted = crypto.publicEncrypt(
+         {
+           key: publicKey,
+           padding: crypto.constants.RSA_PKCS1_PADDING
+         },
+         binaryData
+       );
+
+       const decrypted = VerifyUtils.rsaDecrypt(encrypted.toString('base64'), privateKey);
+       expect(Buffer.compare(decrypted, binaryData)).toBe(0);
+     });
+
+     it('should maintain compatibility with digital envelope workflow', () => {
+       // This tests the integration of rsaDecrypt within the digital_envelope_handler flow
+       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: {
+           type: 'spki',
+           format: 'pem'
+         },
+         privateKeyEncoding: {
+           type: 'pkcs8',
+           format: 'pem'
+         }
+       });
+
+       // Simulate encrypting an AES key with RSA PKCS1 padding
+       const aesKey = crypto.randomBytes(16); // 128-bit AES key
+       const encryptedKey = crypto.publicEncrypt(
+         {
+           key: publicKey,
+           padding: crypto.constants.RSA_PKCS1_PADDING
+         },
+         aesKey
+       );
+
+       // Format the private key as expected by digital_envelope_handler
+       const formattedPrivateKey = privateKey
+         .replace(/-----BEGIN PRIVATE KEY-----\n/, '')
+         .replace(/\n-----END PRIVATE KEY-----/, '')
+         .replace(/\n/g, '');
+
+       // Decrypt using the workflow method
+       const decryptedKey = VerifyUtils.rsaDecrypt(
+         encryptedKey.toString('base64'),
+         VerifyUtils.key_format(formattedPrivateKey)
+       );
+
+       expect(Buffer.compare(decryptedKey, aesKey)).toBe(0);
+     });
+
+     it('should handle invalid encrypted content', () => {
+       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: {
+           type: 'spki',
+           format: 'pem'
+         },
+         privateKeyEncoding: {
+           type: 'pkcs8',
+           format: 'pem'
+         }
+       });
+
+       // Note: Node.js Buffer.from() is very tolerant of invalid base64
+       // It will decode whatever it can, often producing garbage data
+       // crypto.privateDecrypt may or may not throw depending on the garbage
+
+       // Test with various invalid inputs
+       const invalidInputs = [
+         'invalid-base64-!@#$',
+         'SGVsbG8=', // Valid base64 but too small for RSA
+         '', // Empty string
+       ];
+
+       invalidInputs.forEach(invalidInput => {
+         // These inputs will be processed but may produce garbage output
+         // or throw errors - the exact behavior depends on the decoded bytes
+         try {
+           const result = VerifyUtils.rsaDecrypt(invalidInput, privateKey);
+           // If it doesn't throw, result should be Buffer (possibly garbage)
+           expect(Buffer.isBuffer(result)).toBe(true);
+         } catch (error) {
+           // If it throws, that's also acceptable for invalid input
+           expect(error).toBeDefined();
+         }
+       });
+
+       // Test that valid PKCS1-encrypted data works correctly with matching key pair
+       const testData = 'Valid test data';
+       const encrypted = crypto.publicEncrypt(
+         { key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING },
+         Buffer.from(testData)
+       );
+       const decrypted = VerifyUtils.rsaDecrypt(encrypted.toString('base64'), privateKey);
+       expect(decrypted.toString()).toBe(testData);
+     });
+
+     it('should detect mismatched key pairs', () => {
+       // Generate two different key pairs
+       const keyPair1 = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: { type: 'spki', format: 'pem' },
+         privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+       });
+
+       const keyPair2 = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: { type: 'spki', format: 'pem' },
+         privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+       });
+
+       const testData = 'Test data for mismatched keys';
+
+       // Encrypt with keyPair1's public key
+       const encrypted = crypto.publicEncrypt(
+         {
+           key: keyPair1.publicKey,
+           padding: crypto.constants.RSA_PKCS1_PADDING
+         },
+         Buffer.from(testData)
+       );
+
+       // Attempt to decrypt with keyPair2's private key
+       // Note: Decryption may succeed but produce garbage data, or may throw
+       // depending on internal crypto implementation details
+       try {
+         const result = VerifyUtils.rsaDecrypt(encrypted.toString('base64'), keyPair2.privateKey);
+         // If decryption doesn't throw, the result should not match original data
+         expect(result.toString()).not.toBe(testData);
+       } catch (error) {
+         // If it throws, that's also acceptable behavior for mismatched keys
+         expect(error).toBeDefined();
+       }
+     });
+
+     it('should work with formatted and unformatted private keys', () => {
+       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: {
+           type: 'spki',
+           format: 'pem'
+         },
+         privateKeyEncoding: {
+           type: 'pkcs8',
+           format: 'pem'
+         }
+       });
+
+       const testData = 'Test with different key formats';
+
+       const encrypted = crypto.publicEncrypt(
+         {
+           key: publicKey,
+           padding: crypto.constants.RSA_PKCS1_PADDING
+         },
+         Buffer.from(testData)
+       );
+
+       const encryptedBase64 = encrypted.toString('base64');
+
+       // Test with PEM-formatted key (with headers)
+       const decrypted1 = VerifyUtils.rsaDecrypt(encryptedBase64, privateKey);
+       expect(decrypted1.toString()).toBe(testData);
+
+       // Test with key_format helper (removes and re-adds PEM headers)
+       const rawKey = privateKey
+         .replace(/-----BEGIN PRIVATE KEY-----\n/, '')
+         .replace(/\n-----END PRIVATE KEY-----/, '')
+         .replace(/\n/g, '');
+       const formattedKey = VerifyUtils.key_format(rawKey);
+       const decrypted2 = VerifyUtils.rsaDecrypt(encryptedBase64, formattedKey);
+       expect(decrypted2.toString()).toBe(testData);
+     });
+
+     it('should handle edge case of maximum data size for RSA encryption', () => {
+       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: {
+           type: 'spki',
+           format: 'pem'
+         },
+         privateKeyEncoding: {
+           type: 'pkcs8',
+           format: 'pem'
+         }
+       });
+
+       // For 2048-bit RSA with PKCS1 padding, max data size is roughly 245 bytes
+       // (2048 bits = 256 bytes, minus 11 bytes for padding overhead)
+       const maxDataSize = 245;
+       const testData = Buffer.alloc(maxDataSize).fill('X').toString();
+
+       const encrypted = crypto.publicEncrypt(
+         {
+           key: publicKey,
+           padding: crypto.constants.RSA_PKCS1_PADDING
+         },
+         Buffer.from(testData)
+       );
+
+       const decrypted = VerifyUtils.rsaDecrypt(encrypted.toString('base64'), privateKey);
+       expect(decrypted.toString()).toBe(testData);
+     });
+  });
+
+  describe('Integration Tests for Changed Functionality', () => {
+     it('should successfully decrypt digital envelope with PKCS1 padding', () => {
+       // Create a complete digital envelope scenario
+       const { publicKey: isvPublicKey, privateKey: isvPrivateKey } = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: { type: 'spki', format: 'pem' },
+         privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+       });
+
+       // Simulate the digital envelope process
+       const originalData = 'sensitive business data';
+       const aesKey = crypto.randomBytes(16);
+
+       // Encrypt AES key with ISV's public key using PKCS1
+       const encryptedAesKey = crypto.publicEncrypt(
+         {
+           key: isvPublicKey,
+           padding: crypto.constants.RSA_PKCS1_PADDING
+         },
+         aesKey
+       );
+
+       // Encrypt data with AES-128-ECB (matching VerifyUtils.aesDecrypt expectations)
+       const cipher = crypto.createCipheriv('aes-128-ecb', aesKey, Buffer.alloc(0));
+       cipher.setAutoPadding(true); // Ensure padding is enabled
+       const encryptedData = Buffer.concat([
+         cipher.update(originalData, 'utf8'),
+         cipher.final()
+       ]).toString('base64');
+
+       // Format private key for VerifyUtils
+       const formattedPrivateKey = isvPrivateKey
+         .replace(/-----BEGIN PRIVATE KEY-----\n/, '')
+         .replace(/\n-----END PRIVATE KEY-----/, '')
+         .replace(/\n/g, '');
+
+       // Decrypt AES key with PKCS1 padding
+       const decryptedAesKey = VerifyUtils.rsaDecrypt(
+         encryptedAesKey.toString('base64'),
+         VerifyUtils.key_format(formattedPrivateKey)
+       );
+
+       expect(Buffer.compare(decryptedAesKey, aesKey)).toBe(0);
+
+       // Decrypt data with recovered AES key
+       const decryptedData = VerifyUtils.aesDecrypt(encryptedData, decryptedAesKey);
+       expect(decryptedData).toBe(originalData);
+     });
+
+     it('should verify PKCS1 padding is used for YeePay platform compatibility', () => {
+       // This test documents the importance of using PKCS1 padding
+       // to maintain compatibility with YeePay's platform
+       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+         modulusLength: 2048,
+         publicKeyEncoding: { type: 'spki', format: 'pem' },
+         privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+       });
+
+       const testData = 'compatibility test data';
+
+       // Encrypt with PKCS1 (as YeePay platform does)
+       const encryptedPKCS1 = crypto.publicEncrypt(
+         {
+           key: publicKey,
+           padding: crypto.constants.RSA_PKCS1_PADDING
+         },
+         Buffer.from(testData)
+       );
+
+       // VerifyUtils.rsaDecrypt should successfully decrypt PKCS1-encrypted data
+       const decryptedPKCS1 = VerifyUtils.rsaDecrypt(encryptedPKCS1.toString('base64'), privateKey);
+       expect(decryptedPKCS1.toString()).toBe(testData);
+
+       // Verify that VerifyUtils.rsaDecrypt specifically uses PKCS1 padding
+       // by checking it can decrypt data encrypted with PKCS1
+       const anotherTestData = 'second test to confirm PKCS1 usage';
+       const encrypted2 = crypto.publicEncrypt(
+         {
+           key: publicKey,
+           padding: crypto.constants.RSA_PKCS1_PADDING
+         },
+         Buffer.from(anotherTestData)
+       );
+
+       const decrypted2 = VerifyUtils.rsaDecrypt(encrypted2.toString('base64'), privateKey);
+       expect(decrypted2.toString()).toBe(anotherTestData);
+     });
   });
 });
